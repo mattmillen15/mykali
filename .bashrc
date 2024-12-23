@@ -43,6 +43,17 @@ if command -v fastfetch &> /dev/null; then
 fi
 
 #######################################################
+# STARSHIP PROMPT
+#######################################################
+
+# Ensure Starship is properly initialized
+if command -v starship &> /dev/null; then
+    eval "$(starship init bash)"
+else
+    echo "⚠️  Starship is not installed. Run 'sudo apt install starship'."
+fi
+
+#######################################################
 # ENHANCED DIRECTORY NAVIGATION
 #######################################################
 
@@ -58,6 +69,8 @@ cd() {
 # Enable zoxide for smarter cd behavior
 if command -v zoxide &> /dev/null; then
     eval "$(zoxide init bash)"
+else
+    echo "⚠️  zoxide is not installed. Run 'sudo apt install zoxide'."
 fi
 
 #######################################################
@@ -65,18 +78,13 @@ fi
 #######################################################
 
 # Safe rm alias to move files to trash instead of deleting
-alias rm='trash'
-
-# Ensure trash-cli is installed
-if ! command -v trash &> /dev/null; then
+if command -v trash &> /dev/null; then
+    alias rm='trash'
+    alias emptytrash='trash-empty'
+    alias listtrash='trash-list'
+else
     echo "⚠️  trash-cli is not installed. Run 'sudo apt install trash-cli' to enable safe deletion."
 fi
-
-# Clear trash
-alias emptytrash='trash-empty'
-
-# List trash contents
-alias listtrash='trash-list'
 
 #######################################################
 # ALIASES
@@ -158,20 +166,13 @@ cpp() {
     END { print "" }' total_size="$(stat -c '%s' "${1}")" count=0
 }
 
-# Trim Whitespace from Input
-trim() {
-    local var="$*"
-    var="${var#"${var%%[![:space:]]*}"}" # Remove leading spaces
-    var="${var%"${var##*[![:space:]]}"}" # Remove trailing spaces
-    echo -n "$var"
-}
-
 # Show External and Internal IP
 myip() {
     echo -n "Internal IP: "
     hostname -I | awk '{print $1}'
     echo -n "External IP: "
     curl -s ifconfig.me
+    echo ""
 }
 
 #######################################################
