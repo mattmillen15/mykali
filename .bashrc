@@ -107,7 +107,6 @@ alias rm='rm -I --preserve-root'
 
 # Utility Aliases
 alias cls='clear'
-alias myip='curl -s ifconfig.me'
 
 # Quick Updates
 alias update='sudo apt update && sudo apt upgrade -y'
