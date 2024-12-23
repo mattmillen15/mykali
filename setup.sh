@@ -36,6 +36,34 @@ install_dependencies() {
         tmux dconf-cli git curl neovim python3-pip pipx
 }
 
+install_starship() {
+    echo "${YELLOW}Installing Starship...${RESET}"
+    if ! command_exists starship; then
+        curl -fsSL https://starship.rs/install.sh | sh -s -- -y
+    else
+        echo "${GREEN}Starship is already installed.${RESET}"
+    fi
+}
+
+install_zoxide() {
+    echo "${YELLOW}Installing Zoxide...${RESET}"
+    if ! command_exists zoxide; then
+        curl -sS https://raw.githubusercontent.com/ajeetdsouza/zoxide/main/install.sh | bash
+    else
+        echo "${GREEN}Zoxide is already installed.${RESET}"
+    fi
+}
+
+install_fzf() {
+    echo "${YELLOW}Installing fzf...${RESET}"
+    if ! command_exists fzf; then
+        git clone --depth 1 https://github.com/junegunn/fzf.git "$HOME/.fzf"
+        "$HOME/.fzf/install" --all
+    else
+        echo "${GREEN}fzf is already installed.${RESET}"
+    fi
+}
+
 setup_bash() {
     echo "${YELLOW}Setting up Bash configuration...${RESET}"
     [ -f "$USER_HOME/.bashrc" ] && mv "$USER_HOME/.bashrc" "$USER_HOME/.bashrc.bak"
@@ -74,6 +102,9 @@ finalize() {
 # Main Execution
 update_system
 install_dependencies
+install_starship
+install_zoxide
+install_fzf
 setup_bash
 setup_tmux
 run_tools_installation
