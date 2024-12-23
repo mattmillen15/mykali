@@ -34,17 +34,6 @@ export CLICOLOR=1
 alias grep='grep --color=always'
 
 #######################################################
-# STARSHIP PROMPT
-#######################################################
-
-# Ensure Starship is properly initialized
-if command -v starship &> /dev/null; then
-    eval "$(starship init bash)"
-else
-    echo -e "⚠️  Starship is not installed. Run 'sudo apt install starship'."
-fi
-
-#######################################################
 # FASTFETCH CONFIGURATION
 #######################################################
 
@@ -70,7 +59,7 @@ cd() {
 if command -v zoxide &> /dev/null; then
     eval "$(zoxide init bash)"
 else
-    echo -e "⚠️  zoxide is not installed. Run 'sudo apt install zoxide'."
+    echo -e "⚠️  Zoxide is not installed. Run 'sudo apt install zoxide'."
 fi
 
 # Enable typo correction and smart navigation
@@ -102,6 +91,38 @@ else
 fi
 
 #######################################################
+# ALIASES
+#######################################################
+
+# Navigation Shortcuts
+alias home='cd ~'
+alias tools='cd ~/tools'
+alias up='cd ..'
+alias ..='cd ..'
+alias ...='cd ../..'
+
+# Networking Utilities
+alias openports='netstat -tuln'
+
+# Safety Aliases
+alias cp='cp -i'
+alias mv='mv -i'
+alias rm='rm -I --preserve-root'
+
+# Utility Aliases
+alias cls='clear'
+
+# Quick Updates
+alias update='sudo apt update && sudo apt upgrade -y'
+alias cleanup='sudo apt autoremove -y && sudo apt autoclean'
+
+# Enhanced ls Commands
+alias la='ls -Alh'                # Show hidden files
+alias ll='ls -Fls'                # Long listing format
+alias lt='ls -ltrh'               # Sort by date
+alias ldir="ls -l | grep '^d'"    # List directories only
+
+#######################################################
 # FUNCTIONS
 #######################################################
 
@@ -112,6 +133,49 @@ myip() {
     echo -n "External IP: "
     curl -s ifconfig.me
     echo ""
+}
+
+# Extract Archives
+extract() {
+    for archive in "$@"; do
+        if [ -f "$archive" ]; then
+            case "$archive" in
+                *.tar.bz2) tar xvjf "$archive" ;;
+                *.tar.gz) tar xvzf "$archive" ;;
+                *.bz2) bunzip2 "$archive" ;;
+                *.rar) rar x "$archive" ;;
+                *.gz) gunzip "$archive" ;;
+                *.tar) tar xvf "$archive" ;;
+                *.tbz2) tar xvjf "$archive" ;;
+                *.tgz) tar xvzf "$archive" ;;
+                *.zip) unzip "$archive" ;;
+                *.7z) 7z x "$archive" ;;
+                *) echo "❌ Unknown archive type: '$archive'" ;;
+            esac
+        else
+            echo "❌ '$archive' is not a valid file!"
+        fi
+    done
+}
+
+# Copy with Progress Bar
+cpp() {
+    set -e
+    strace -q -ewrite cp -- "${1}" "${2}" 2>&1 |
+    awk '{
+        count += $NF
+        if (count % 10 == 0) {
+            percent = count / total_size * 100
+            printf "%3d%% [", percent
+            for (i=0;i<=percent;i++)
+                printf "="
+            printf ">"
+            for (i=percent;i<100;i++)
+                printf " "
+            printf "]\r"
+        }
+    }
+    END { print "" }' total_size="$(stat -c '%s' "${1}")" count=0
 }
 
 #######################################################
@@ -138,6 +202,24 @@ if [ -f /usr/share/bash-completion/bash_completion ]; then
     . /usr/share/bash-completion/bash_completion
 elif [ -f /etc/bash_completion ]; then
     . /etc/bash_completion
+fi
+
+#######################################################
+# STARSHIP PROMPT & ZOXIDE INITIALIZATION
+#######################################################
+
+# Initialize Starship Prompt
+if command -v starship &> /dev/null; then
+    eval "$(starship init bash)"
+else
+    echo -e "⚠️  Starship is not installed. Run 'sudo apt install starship'."
+fi
+
+# Initialize Zoxide
+if command -v zoxide &> /dev/null; then
+    eval "$(zoxide init bash)"
+else
+    echo -e "⚠️  Zoxide is not installed. Run 'sudo apt install zoxide'."
 fi
 
 #######################################################
