@@ -1,6 +1,6 @@
 #!/bin/bash
 #
-# setup.sh — All-in-One Kali Customization Script
+# setup.sh — Simplified Kali Customization Script
 # Repo: https://github.com/mattmillen15/mykali
 
 set -e  # Exit on any error
@@ -14,9 +14,6 @@ GREEN='\033[32m'
 # Paths
 REPO_DIR="$(cd "$(dirname "$0")" && pwd)"
 USER_HOME="$HOME"
-FONT_DIR="$HOME/.local/share/fonts"
-
-# Detect user for ownership fixes
 RUN_USER="${SUDO_USER:-$USER}"
 
 # Helper Functions
@@ -28,8 +25,8 @@ fix_permissions() {
 }
 
 update_system() {
-    echo "${YELLOW}Updating system packages...${RESET}"
-    sudo apt update && sudo apt upgrade -y
+    echo "${YELLOW}Updating package lists...${RESET}"
+    sudo apt update
 }
 
 install_dependencies() {
@@ -39,24 +36,8 @@ install_dependencies() {
         tmux dconf-cli git curl neovim python3-pip pipx
 }
 
-install_nerd_fonts() {
-    echo "${YELLOW}Installing Terminus Nerd Font...${RESET}"
-    mkdir -p "$FONT_DIR"
-    wget -qO /tmp/Terminus.zip "https://github.com/ryanoasis/nerd-fonts/releases/download/v3.3.0/Terminus.zip"
-    unzip -o /tmp/Terminus.zip -d "$FONT_DIR"
-    fc-cache -fv
-
-    if command_exists gsettings; then
-        gsettings set org.gnome.desktop.interface monospace-font-name "Terminus Nerd Font 12" || true
-    fi
-    if [ -n "$DISPLAY" ]; then
-        echo "xterm*faceName: Terminus Nerd Font:pixelsize=14" >> "$HOME/.Xresources"
-        xrdb -merge "$HOME/.Xresources" || true
-    fi
-}
-
 setup_bash() {
-    echo "${YELLOW}Linking bash configuration...${RESET}"
+    echo "${YELLOW}Setting up Bash configuration...${RESET}"
     [ -f "$USER_HOME/.bashrc" ] && mv "$USER_HOME/.bashrc" "$USER_HOME/.bashrc.bak"
     ln -sf "$REPO_DIR/.bashrc" "$USER_HOME/.bashrc"
     mkdir -p "$USER_HOME/.config"
@@ -93,7 +74,6 @@ finalize() {
 # Main Execution
 update_system
 install_dependencies
-install_nerd_fonts
 setup_bash
 setup_tmux
 run_tools_installation
