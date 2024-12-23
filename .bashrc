@@ -4,29 +4,29 @@
 # GENERAL CONFIGURATIONS
 #######################################################
 
-# History
+# History Configuration
 export HISTFILESIZE=10000
 export HISTSIZE=500
 export HISTTIMEFORMAT="%F %T"
 export HISTCONTROL=erasedups:ignoredups:ignorespace
 PROMPT_COMMAND='history -a'
 
-# Auto-check terminal size
+# Auto-Adjust Terminal Size
 shopt -s checkwinsize
 shopt -s histappend
 
-# Disable terminal bell
+# Disable Terminal Bell
 bind "set bell-style visible"
 
-# Enable auto-completion improvements
+# Enable Enhanced Auto-Completion
 bind "set completion-ignore-case on"
 bind "set show-all-if-ambiguous On"
 
-# Colors for ls and grep
+# Enable Colors for ls and grep
 export CLICOLOR=1
 alias grep='grep --color=always'
 
-# Use Starship and Zoxide if available
+# Load Starship and Zoxide if Installed
 if command -v starship &> /dev/null; then
     eval "$(starship init bash)"
 fi
@@ -35,49 +35,48 @@ if command -v zoxide &> /dev/null; then
 fi
 
 #######################################################
+# FASTFETCH CONFIGURATION
+#######################################################
+
+# Ensure Fastfetch runs with the custom configuration
+if command -v fastfetch &> /dev/null; then
+    fastfetch --config ~/mykali/config.jsonc
+fi
+
+#######################################################
 # ALIASES
 #######################################################
 
-# Common navigation
+# Navigation Shortcuts
 alias home='cd ~'
 alias tools='cd ~/tools'
+alias up='cd ..'
+alias ..='cd ..'
+alias ...='cd ../..'
 
-# Networking
+# Networking Utilities
 alias openports='netstat -tuln'
 
-# Safety Measures
+# Safety Aliases
 alias cp='cp -i'
 alias mv='mv -i'
 alias rm='rm -I --preserve-root'
 
-# Terminal Utilities
+# Utility Aliases
 alias cls='clear'
+alias myip='curl -s ifconfig.me'
 
-#######################################################
-# FUNCTIONS
-#######################################################
-
-# Extract archives
-extract() {
-    for archive in "$@"; do
-        if [ -f "$archive" ]; then
-            case "$archive" in
-                *.tar.bz2) tar xvjf "$archive" ;;
-                *.tar.gz) tar xvzf "$archive" ;;
-                *.zip) unzip "$archive" ;;
-                *.7z) 7z x "$archive" ;;
-                *) echo "Unknown archive: $archive" ;;
-            esac
-        else
-            echo "'$archive' is not a valid file!"
-        fi
-    done
-}
-
-# Show my external IP
-alias myip="curl -s ifconfig.me"
+# Quick Updates
+alias update='sudo apt update && sudo apt upgrade -y'
+alias cleanup='sudo apt autoremove -y && sudo apt autoclean'
 
 #######################################################
 # PATH UPDATES
 #######################################################
+
 export PATH=$PATH:"$HOME/.local/bin:$HOME/.cargo/bin"
+
+# Ensure Tools Directory is in PATH
+if [ -d "$HOME/tools" ]; then
+    export PATH="$HOME/tools:$PATH"
+fi
