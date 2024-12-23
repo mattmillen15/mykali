@@ -33,35 +33,7 @@ install_dependencies() {
     echo "${YELLOW}Installing core dependencies...${RESET}"
     sudo apt install -y \
         bash bash-completion tar bat tree multitail fastfetch wget unzip fontconfig \
-        tmux dconf-cli git curl neovim python3-pip pipx
-}
-
-install_starship() {
-    echo "${YELLOW}Installing Starship...${RESET}"
-    if ! command_exists starship; then
-        curl -fsSL https://starship.rs/install.sh | sh -s -- -y
-    else
-        echo "${GREEN}Starship is already installed.${RESET}"
-    fi
-}
-
-install_zoxide() {
-    echo "${YELLOW}Installing Zoxide...${RESET}"
-    if ! command_exists zoxide; then
-        curl -sS https://raw.githubusercontent.com/ajeetdsouza/zoxide/main/install.sh | bash
-    else
-        echo "${GREEN}Zoxide is already installed.${RESET}"
-    fi
-}
-
-install_fzf() {
-    echo "${YELLOW}Installing fzf...${RESET}"
-    if ! command_exists fzf; then
-        git clone --depth 1 https://github.com/junegunn/fzf.git "$HOME/.fzf"
-        "$HOME/.fzf/install" --all
-    else
-        echo "${GREEN}fzf is already installed.${RESET}"
-    fi
+        tmux dconf-cli git curl neovim python3-pip pipx starship zoxide
 }
 
 setup_bash() {
@@ -96,15 +68,13 @@ set_bash_as_default() {
 finalize() {
     echo "${YELLOW}Finalizing setup...${RESET}"
     fix_permissions
-    echo "${GREEN}Setup complete! Restart your shell or run 'exec bash' to apply changes.${RESET}"
+    echo "${GREEN}Setup complete! Switching to Bash now...${RESET}"
+    exec bash --login
 }
 
 # Main Execution
 update_system
 install_dependencies
-install_starship
-install_zoxide
-install_fzf
 setup_bash
 setup_tmux
 run_tools_installation
