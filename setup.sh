@@ -1,84 +1,84 @@
 #!/bin/bash
-#
-# setup.sh — Simplified Kali Customization Script
-# Repo: https://github.com/mattmillen15/mykali
 
-set -e  # Exit on any error
+# Colors for messages
+GREEN='\033[32m'
+YELLOW='\033[33m'
+RED='\033[31m'
+RESET='\033[0m'
 
-# Paths
-REPO_DIR="$(cd "$(dirname "$0")" && pwd)"
-USER_HOME="$HOME"
-RUN_USER="${SUDO_USER:-$USER}"
+echo -e "${YELLOW}🔧 Starting Kali Custom Environment Setup...${RESET}"
 
-# Helper Functions
-command_exists() { command -v "$1" >/dev/null 2>&1; }
+#######################################################
+# UPDATE SYSTEM
+#######################################################
+echo -e "${YELLOW}🔄 Updating System Packages...${RESET}"
+sudo apt update
 
-fix_permissions() {
-    echo $'\033[33mFixing ownership for user: '"$RUN_USER"$'\033[0m'
-    sudo chown -R "$RUN_USER:$RUN_USER" "$USER_HOME"
-}
+#######################################################
+# INSTALL DEPENDENCIES
+#######################################################
+echo -e "${YELLOW}📦 Installing Required Tools and Dependencies...${RESET}"
+sudo apt install -y \
+    starship \
+    zoxide \
+    trash-cli \
+    seclists \
+    jq \
+    bat \
+    tree \
+    fzf \
+    fastfetch \
+    neovim
 
-update_system() {
-    echo $'\033[33mUpdating package lists...\033[0m'
-    sudo apt update
-}
+#######################################################
+# CONFIGURE TOOLS
+#######################################################
 
-install_dependencies() {
-    echo $'\033[33mInstalling core dependencies...\033[0m'
-    sudo apt install -y \
-        bash bash-completion tar bat tree multitail fastfetch wget unzip fontconfig \
-        tmux dconf-cli git curl neovim python3-pip pipx starship zoxide trash-cli
-}
+# Ensure ~/tools directory exists
+echo -e "${YELLOW}🛠 Ensuring ~/tools directory exists...${RESET}"
+mkdir -p ~/tools
 
-setup_bash() {
-    echo $'\033[33mSetting up Bash configuration...\033[0m'
-    [ -f "$USER_HOME/.bashrc" ] && mv "$USER_HOME/.bashrc" "$USER_HOME/.bashrc.bak"
-    ln -sf "$REPO_DIR/.bashrc" "$USER_HOME/.bashrc"
-    mkdir -p "$USER_HOME/.config"
-    ln -sf "$REPO_DIR/starship.toml" "$USER_HOME/.config/starship.toml"
-}
+# Clone custom tools from GitHub if they don't exist
+declare -A GITHUB_TOOLS=(
+    ["LDDummy"]="https://github.com/mattmillen15/LDDummy"
+    ["DumpInspector"]="https://github.com/mattmillen15/DumpInspector"
+    ["SwiftSecrets"]="https://github.com/mattmillen15/SwiftSecrets"
+)
 
-setup_fastfetch() {
-    echo $'\033[33mConfiguring Fastfetch...\033[0m'
-    mkdir -p "$USER_HOME/.config/fastfetch"
-    ln -sf "$REPO_DIR/config.jsonc" "$USER_HOME/.config/fastfetch/config.jsonc"
-    echo $'\033[32m✅ Fastfetch configuration linked to ~/.config/fastfetch/config.jsonc\033[0m'
-}
-
-setup_tmux() {
-    echo $'\033[33mSetting up Tmux configuration...\033[0m'
-    ln -sf "$REPO_DIR/tmux/tmux.conf" "$USER_HOME/.tmux.conf"
-    [ -f "$REPO_DIR/tmux/tmux.conf.local" ] && ln -sf "$REPO_DIR/tmux/tmux.conf.local" "$USER_HOME/.tmux.conf.local"
-}
-
-run_tools_installation() {
-    echo $'\033[33mRunning custom tools installation...\033[0m'
-    if [ -f "$REPO_DIR/tools.sh" ]; then
-        chmod +x "$REPO_DIR/tools.sh"
-        "$REPO_DIR/tools.sh"
+for tool in "${!GITHUB_TOOLS[@]}"; do
+    if [ ! -d "$HOME/tools/$tool" ]; then
+        echo -e "${YELLOW}⬇️  Cloning $tool...${RESET}"
+        git clone "${GITHUB_TOOLS[$tool]}" "$HOME/tools/$tool"
     else
-        echo $'\033[31mtools.sh not found. Skipping tool installation.\033[0m'
+        echo -e "${GREEN}✅ $tool already exists, skipping...${RESET}"
     fi
-}
+done
 
-set_bash_as_default() {
-    echo $'\033[33mSetting Bash as the default shell...\033[0m'
-    sudo chsh -s /bin/bash "$RUN_USER"
-}
+# Ensure tools in PATH
+if [[ ":$PATH:" != *":$HOME/tools:"* ]]; then
+    echo -e "${YELLOW}🛠 Adding ~/tools to PATH...${RESET}"
+    echo 'export PATH="$HOME/tools:$PATH"' >> ~/.bashrc
+fi
 
-finalize() {
-    echo $'\033[33mFinalizing setup...\033[0m'
-    fix_permissions
-    echo $'\033[32mSetup complete! Switching to Bash now...\033[0m'
-    exec bash --login
-}
+#######################################################
+# FASTFETCH CONFIGURATION
+#######################################################
+echo -e "${YELLOW}🎨 Configuring Fastfetch...${RESET}"
+ln -sf ~/mykali/config.jsonc ~/.config/fastfetch/config.jsonc
 
-# Main Execution
-update_system
-install_dependencies
-setup_bash
-setup_fastfetch
-setup_tmux
-run_tools_installation
-set_bash_as_default
-finalize
+#######################################################
+# LINK CONFIG FILES
+#######################################################
+echo -e "${YELLOW}🔗 Linking Configuration Files...${RESET}"
+ln -sf ~/mykali/starship.toml ~/.config/starship.toml
+ln -sf ~/mykali/.bashrc ~/.bashrc
+
+#######################################################
+# FINALIZE SETUP
+#######################################################
+echo -e "${YELLOW}⚙️ Finalizing setup...${RESET}"
+sudo chsh -s /bin/bash kali
+sudo chown -R kali:kali /home/kali
+
+echo -e "${GREEN}✅ Setup complete! Restarting shell...${RESET}"
+exec bash --login
