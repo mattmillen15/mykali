@@ -22,26 +22,61 @@ bind "set bell-style visible"
 bind "set completion-ignore-case on"
 bind "set show-all-if-ambiguous On"
 
+# Enable Spellcheck for Directories
+shopt -s cdspell
+
 # Enable Colors for ls and grep
 export CLICOLOR=1
 alias grep='grep --color=always'
 
-# Load Starship and Zoxide if Installed
-if command -v starship &> /dev/null; then
-    eval "$(starship init bash)"
-fi
-if command -v zoxide &> /dev/null; then
-    eval "$(zoxide init bash)"
-fi
+# Default Editor
+export EDITOR=nvim
+export VISUAL=nvim
 
 #######################################################
 # FASTFETCH CONFIGURATION
 #######################################################
 
-# Ensure Fastfetch runs with the custom configuration
+# Run Fastfetch with custom configuration if installed
 if command -v fastfetch &> /dev/null; then
     fastfetch --config ~/mykali/config.jsonc
 fi
+
+#######################################################
+# ENHANCED DIRECTORY NAVIGATION
+#######################################################
+
+# Automatically list contents after cd
+cd() {
+    if [ -n "$1" ]; then
+        builtin cd "$@" && ls -A --color=always
+    else
+        builtin cd ~ && ls -A --color=always
+    fi
+}
+
+# Enable zoxide for smarter cd behavior
+if command -v zoxide &> /dev/null; then
+    eval "$(zoxide init bash)"
+fi
+
+#######################################################
+# TRASH FUNCTIONALITY
+#######################################################
+
+# Safe rm alias to move files to trash instead of deleting
+alias rm='trash'
+
+# Ensure trash-cli is installed
+if ! command -v trash &> /dev/null; then
+    echo "⚠️  trash-cli is not installed. Run 'sudo apt install trash-cli' to enable safe deletion."
+fi
+
+# Clear trash
+alias emptytrash='trash-empty'
+
+# List trash contents
+alias listtrash='trash-list'
 
 #######################################################
 # ALIASES
@@ -70,13 +105,106 @@ alias myip='curl -s ifconfig.me'
 alias update='sudo apt update && sudo apt upgrade -y'
 alias cleanup='sudo apt autoremove -y && sudo apt autoclean'
 
+# Enhanced ls Commands
+alias la='ls -Alh'                # Show hidden files
+alias ll='ls -Fls'                # Long listing format
+alias lt='ls -ltrh'               # Sort by date
+alias ldir="ls -l | grep '^d'"    # List directories only
+
 #######################################################
-# PATH UPDATES
+# SPECIAL FUNCTIONS
 #######################################################
 
-export PATH=$PATH:"$HOME/.local/bin:$HOME/.cargo/bin"
+# Extract Archives
+extract() {
+    for archive in "$@"; do
+        if [ -f "$archive" ]; then
+            case "$archive" in
+                *.tar.bz2) tar xvjf "$archive" ;;
+                *.tar.gz) tar xvzf "$archive" ;;
+                *.bz2) bunzip2 "$archive" ;;
+                *.rar) rar x "$archive" ;;
+                *.gz) gunzip "$archive" ;;
+                *.tar) tar xvf "$archive" ;;
+                *.tbz2) tar xvjf "$archive" ;;
+                *.tgz) tar xvzf "$archive" ;;
+                *.zip) unzip "$archive" ;;
+                *.7z) 7z x "$archive" ;;
+                *) echo "❌ Unknown archive type: '$archive'" ;;
+            esac
+        else
+            echo "❌ '$archive' is not a valid file!"
+        fi
+    done
+}
+
+# Copy with Progress Bar
+cpp() {
+    set -e
+    strace -q -ewrite cp -- "${1}" "${2}" 2>&1 |
+    awk '{
+        count += $NF
+        if (count % 10 == 0) {
+            percent = count / total_size * 100
+            printf "%3d%% [", percent
+            for (i=0;i<=percent;i++)
+                printf "="
+            printf ">"
+            for (i=percent;i<100;i++)
+                printf " "
+            printf "]\r"
+        }
+    }
+    END { print "" }' total_size="$(stat -c '%s' "${1}")" count=0
+}
+
+# Trim Whitespace from Input
+trim() {
+    local var="$*"
+    var="${var#"${var%%[![:space:]]*}"}" # Remove leading spaces
+    var="${var%"${var##*[![:space:]]}"}" # Remove trailing spaces
+    echo -n "$var"
+}
+
+# Show External and Internal IP
+myip() {
+    echo -n "Internal IP: "
+    hostname -I | awk '{print $1}'
+    echo -n "External IP: "
+    curl -s ifconfig.me
+}
+
+#######################################################
+# PATH CONFIGURATIONS
+#######################################################
 
 # Ensure Tools Directory is in PATH
 if [ -d "$HOME/tools" ]; then
     export PATH="$HOME/tools:$PATH"
 fi
+
+# Add local binaries to PATH
+export PATH="$PATH:$HOME/.local/bin:$HOME/.cargo/bin"
+
+#######################################################
+# SOURCE GLOBAL FILES
+#######################################################
+
+# Source global definitions
+if [ -f /etc/bashrc ]; then
+    . /etc/bashrc
+fi
+
+# Enable bash programmable completion features
+if [ -f /usr/share/bash-completion/bash_completion ]; then
+    . /usr/share/bash-completion/bash_completion
+elif [ -f /etc/bash_completion ]; then
+    . /etc/bash_completion
+fi
+
+#######################################################
+# FINALIZATION
+#######################################################
+
+# Display a friendly greeting
+echo "✅ Environment Loaded. Happy Hacking!"
