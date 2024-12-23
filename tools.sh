@@ -19,14 +19,13 @@ sudo apt install -y \
 #    flask
 
 # Install via pipx
-pipx install crackmapexec
-pipx install mitmproxy
+pipx install impacket
 
 # Install via GitHub
 mkdir -p "$HOME/tools"
 
 if [ ! -d "$HOME/tools/nmapAutomator" ]; then
-    git clone https://github.com/21y4d/nmapAutomator.git "$HOME/tools/nmapAutomator"
+    git clone https://github.com/mattmillen15 "$HOME/tools/nmapAutomator"
 fi
 
 # Ensure tools in PATH
