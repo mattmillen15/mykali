@@ -27,7 +27,7 @@ install_dependencies() {
     echo $'\033[33mInstalling core dependencies...\033[0m'
     sudo apt install -y \
         bash bash-completion tar bat tree multitail fastfetch wget unzip fontconfig \
-        tmux dconf-cli git curl neovim python3-pip pipx starship zoxide
+        tmux dconf-cli git curl neovim python3-pip pipx starship zoxide trash-cli
 }
 
 setup_bash() {
@@ -36,6 +36,13 @@ setup_bash() {
     ln -sf "$REPO_DIR/.bashrc" "$USER_HOME/.bashrc"
     mkdir -p "$USER_HOME/.config"
     ln -sf "$REPO_DIR/starship.toml" "$USER_HOME/.config/starship.toml"
+}
+
+setup_fastfetch() {
+    echo $'\033[33mConfiguring Fastfetch...\033[0m'
+    mkdir -p "$USER_HOME/.config/fastfetch"
+    ln -sf "$REPO_DIR/config.jsonc" "$USER_HOME/.config/fastfetch/config.jsonc"
+    echo $'\033[32m✅ Fastfetch configuration linked to ~/.config/fastfetch/config.jsonc\033[0m'
 }
 
 setup_tmux() {
@@ -70,6 +77,7 @@ finalize() {
 update_system
 install_dependencies
 setup_bash
+setup_fastfetch
 setup_tmux
 run_tools_installation
 set_bash_as_default
