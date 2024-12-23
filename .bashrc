@@ -25,22 +25,13 @@ bind "set show-all-if-ambiguous On"
 # Enable Spellcheck for Directories
 shopt -s cdspell
 
-# Enable Colors for ls and grep
-export CLICOLOR=1
-alias grep='grep --color=always'
-
 # Default Editor
 export EDITOR=nvim
 export VISUAL=nvim
 
-#######################################################
-# FASTFETCH CONFIGURATION
-#######################################################
-
-# Run Fastfetch with custom configuration if installed
-if command -v fastfetch &> /dev/null; then
-    fastfetch --config ~/mykali/config.jsonc
-fi
+# Enable colors for ls and grep
+export CLICOLOR=1
+alias grep='grep --color=always'
 
 #######################################################
 # STARSHIP PROMPT
@@ -51,6 +42,15 @@ if command -v starship &> /dev/null; then
     eval "$(starship init bash)"
 else
     echo "⚠️  Starship is not installed. Run 'sudo apt install starship'."
+fi
+
+#######################################################
+# FASTFETCH CONFIGURATION
+#######################################################
+
+# Run Fastfetch with custom configuration if installed
+if command -v fastfetch &> /dev/null; then
+    fastfetch --config ~/mykali/config.jsonc
 fi
 
 #######################################################
@@ -72,6 +72,21 @@ if command -v zoxide &> /dev/null; then
 else
     echo "⚠️  zoxide is not installed. Run 'sudo apt install zoxide'."
 fi
+
+# Enable typo correction and smart navigation
+shopt -s cdspell
+shopt -s dirspell
+shopt -s autocd
+PROMPT_COMMAND='history -a'
+
+# Directory Stack Navigation
+alias pd='pushd'
+alias bd='popd'
+alias dirs='dirs -v'
+
+# Enable better history navigation
+bind '"\e[A": history-search-backward'
+bind '"\e[B": history-search-forward'
 
 #######################################################
 # TRASH FUNCTIONALITY
@@ -173,7 +188,6 @@ myip() {
     curl -s ifconfig.me
     echo ""
 }
-
 
 #######################################################
 # PATH CONFIGURATIONS
