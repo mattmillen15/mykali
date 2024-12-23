@@ -1,7 +1,6 @@
 #Install
 ```bash
-mkdir ~/build
-cd ~/build
+cd ~
 git clone --depth=1 https://github.com/mattmillen15/mybash.git
 cd mybash
 chmod +x setup.sh
