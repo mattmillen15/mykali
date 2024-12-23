@@ -1,329 +1,250 @@
 #!/bin/sh -e
 #
-# setup.sh — All-in-one script for Kali that installs:
-#   1) Dependencies (bash, tmux, zoxide, starship, fzf, etc.)
-#   2) Terminus Nerd Font (for nice glyphs/icons)
-#   3) Your myBash config (from this forked repo)
-#   4) Your ohmytmux config (tmux/tmux.conf + tmux/tmux.conf.local)
-#   5) Sets Bash as default shell, auto-starts Bash
+# setup.sh — All-in-one script for a user on Kali (or other distros).
+# Usage:
+#   1) git clone --depth=1 https://github.com/YOUR_USERNAME/mybash.git
+#   2) cd mybash
+#   3) chmod +x setup.sh
+#   4) ./setup.sh
+#
+# This will:
+#   - Install dependencies (bash, tmux, starship, fzf, zoxide, etc.) using sudo if available
+#   - Install Terminus Nerd Font
+#   - Link .bashrc, starship.toml, tmux configs from this repo to your home
+#   - Set Bash as default shell (requires sudo)
+#   - Fix file ownership (if run with sudo)
+#   - Encourage you to restart or auto-run bash
 
 ###############################################################################
 # Colors for echo
 ###############################################################################
-RC='\033[0m'
+RESET='\033[0m'
 RED='\033[31m'
 YELLOW='\033[33m'
 GREEN='\033[32m'
 
 ###############################################################################
-# Variables
-###############################################################################
-LINUXTOOLBOXDIR="$HOME/linuxtoolbox"
-PACKAGER=""
-SUDO_CMD=""
-SUGROUP=""
-GITPATH=""  # Will point to this cloned repo directory
-
-###############################################################################
-# Helper: command_exists
+# Helper Functions
 ###############################################################################
 command_exists() {
     command -v "$1" >/dev/null 2>&1
 }
 
-###############################################################################
-# STEP 1: Pre-flight checks and environment setup
-###############################################################################
-checkEnv() {
-    echo "${YELLOW}Checking environment...${RC}"
-
-    # Requirements to run this script
-    REQUIREMENTS='curl groups sudo'
-    for req in $REQUIREMENTS; do
-        if ! command_exists "$req"; then
-            echo "${RED}To run me, you need: $REQUIREMENTS${RC}"
-            exit 1
-        fi
-    done
-
-    # Detect package manager
-    PACKAGEMANAGER='nala apt dnf yum pacman zypper emerge xbps-install nix-env'
-    for pgm in $PACKAGEMANAGER; do
-        if command_exists "$pgm"; then
-            PACKAGER="$pgm"
-            echo "Using $pgm for package installation."
-            break
-        fi
-    done
-    if [ -z "$PACKAGER" ]; then
-        echo "${RED}No supported package manager found!${RC}"
-        exit 1
-    fi
-
-    # Privilege escalation
-    if command_exists sudo; then
-        SUDO_CMD="sudo"
-    elif command_exists doas && [ -f "/etc/doas.conf" ]; then
-        SUDO_CMD="doas"
-    else
-        SUDO_CMD="su -c"
-    fi
-
-    # Directory where this script (repo) is located
-    GITPATH=$(dirname "$(realpath "$0")")
-    if [ ! -w "$GITPATH" ]; then
-        echo "${RED}Can't write to $GITPATH. Please clone to a writable location.${RC}"
-        exit 1
-    fi
-
-    # Figure out superuser group
-    SUPERUSERGROUP='wheel sudo root'
-    for sug in $SUPERUSERGROUP; do
-        if groups | grep -q "$sug"; then
-            SUGROUP="$sug"
-            break
-        fi
-    done
-    if [ -z "$SUGROUP" ]; then
-        # fallback if none found, but typically we want at least "sudo"
-        SUGROUP="sudo"
-    fi
-    if ! groups | grep -q "$SUGROUP"; then
-        echo "${RED}You need to be in the sudo group (or similar) to run me!${RC}"
-        exit 1
-    fi
-
-    echo "${GREEN}Environment looks good.${RC}"
-}
-
-###############################################################################
-# STEP 2: Install dependencies
-###############################################################################
-installDepend() {
-    echo "${YELLOW}Installing dependencies...${RC}"
-
-    # The "core" dependencies. Add what you like here.
-    DEPENDENCIES='bash bash-completion tar bat tree multitail fastfetch wget unzip fontconfig tmux xterm dconf-cli'
-
-    # We also want neovim if missing
-    if ! command_exists nvim; then
-        DEPENDENCIES="$DEPENDENCIES neovim"
-    fi
-
-    # Attempt to install with the discovered package manager
-    case "$PACKAGER" in
-        pacman)
-            # Arch-based
-            if ! command_exists yay && ! command_exists paru; then
-                echo "Installing yay as AUR helper..."
-                $SUDO_CMD $PACKAGER --noconfirm -S base-devel
-                cd /opt && $SUDO_CMD git clone https://aur.archlinux.org/yay-git.git && $SUDO_CMD chown -R "${USER}:${USER}" ./yay-git
-                cd yay-git && makepkg --noconfirm -si
-            fi
-            if command_exists yay; then
-                yay --noconfirm -S $DEPENDENCIES
-            elif command_exists paru; then
-                paru --noconfirm -S $DEPENDENCIES
-            fi
-            ;;
-        nala|apt)
-            $SUDO_CMD $PACKAGER install -y $DEPENDENCIES
-            ;;
-        dnf|yum)
-            $SUDO_CMD $PACKAGER install -y $DEPENDENCIES
-            ;;
-        zypper)
-            $SUDO_CMD zypper refresh
-            $SUDO_CMD zypper -n install $DEPENDENCIES
-            ;;
-        emerge)
-            # Gentoo
-            $SUDO_CMD emerge -v app-shells/bash app-shells/bash-completion app-arch/tar app-editors/neovim sys-apps/bat app-text/tree app-text/multitail app-misc/fastfetch x11-terms/xterm x11-misc/pcmanfm
-            ;;
-        xbps-install)
-            $SUDO_CMD $PACKAGER -y install $DEPENDENCIES
-            ;;
-        nix-env)
-            $SUDO_CMD $PACKAGER -iA nixos.bash nixos.bash-completion nixos.gnutar nixos.neovim nixos.bat nixos.tree nixos.multitail nixos.fastfetch nixos.tmux nixos.xterm
-            ;;
-    esac
-
-    echo "${GREEN}Dependencies installed.${RC}"
-}
-
-###############################################################################
-# STEP 3: Install Starship & FZF
-###############################################################################
-installStarshipAndFzf() {
-    echo "${YELLOW}Checking Starship / fzf...${RC}"
-
-    if command_exists starship; then
-        echo "Starship already installed."
-    else
-        echo "Installing Starship..."
-        if ! curl -sS https://starship.rs/install.sh | sh -s -- -y; then
-            echo "${RED}Starship installation failed!${RC}"
-            exit 1
-        fi
-    fi
-
-    if command_exists fzf; then
-        echo "FZF already installed."
-    else
-        echo "Installing FZF..."
-        git clone --depth 1 https://github.com/junegunn/fzf.git "$HOME/.fzf"
-        "$HOME/.fzf/install" --all
+fix_permissions_for_user() {
+    # If script is run with sudo, SUDO_USER is the user who invoked sudo.
+    # We want that user to own the dotfiles, not root.
+    if [ -n "$SUDO_USER" ] && [ "$SUDO_USER" != "root" ]; then
+        echo "${YELLOW}Fixing ownership in /home/$SUDO_USER for user $SUDO_USER...${RESET}"
+        sudo chown -R "$SUDO_USER:$SUDO_USER" "/home/$SUDO_USER/"
     fi
 }
 
 ###############################################################################
-# STEP 4: Install zoxide
+# Step 1: Check environment
 ###############################################################################
-installZoxide() {
-    echo "${YELLOW}Checking zoxide...${RC}"
-    if command_exists zoxide; then
-        echo "Zoxide already installed."
-        return
+echo "${YELLOW}[1/8] Checking environment...${RESET}"
+
+# Identify package manager
+PACKAGER=''
+for p in nala apt dnf yum pacman zypper emerge xbps-install nix-env; do
+    if command_exists "$p"; then
+        PACKAGER="$p"
+        break
     fi
+done
+if [ -z "$PACKAGER" ]; then
+    echo "${RED}No supported package manager found. Aborting.${RESET}"
+    exit 1
+fi
+
+# Check if we have sudo or are root
+USE_SUDO=''
+if [ "$(id -u)" -ne 0 ] && command_exists sudo; then
+    # normal user + sudo installed
+    USE_SUDO='sudo'
+fi
+
+echo "${GREEN}Detected package manager: $PACKAGER${RESET}"
+if [ -z "$USE_SUDO" ] && [ "$(id -u)" -ne 0 ]; then
+    echo "${YELLOW}Note: We won't be able to install system packages without sudo or root!${RESET}"
+    echo "Proceeding, but dependency installation will likely fail unless they're already installed."
+fi
+
+###############################################################################
+# Step 2: Install dependencies (bash, tmux, etc.) if possible
+###############################################################################
+echo "${YELLOW}[2/8] Installing core dependencies...${RESET}"
+
+DEPENDENCIES="bash bash-completion tar bat tree multitail fastfetch wget unzip fontconfig tmux dconf-cli"
+
+# Optionally add neovim if missing
+if ! command_exists nvim; then
+    DEPENDENCIES="$DEPENDENCIES neovim"
+fi
+
+case "$PACKAGER" in
+    pacman)
+        if [ -n "$USE_SUDO" ]; then
+            # Pacman-based
+            $USE_SUDO pacman -Syu --noconfirm $DEPENDENCIES
+        fi
+        ;;
+    nala|apt)
+        if [ -n "$USE_SUDO" ]; then
+            $USE_SUDO $PACKAGER update -y
+            $USE_SUDO $PACKAGER install -y $DEPENDENCIES
+        fi
+        ;;
+    dnf|yum)
+        if [ -n "$USE_SUDO" ]; then
+            $USE_SUDO $PACKAGER install -y $DEPENDENCIES
+        fi
+        ;;
+    zypper)
+        if [ -n "$USE_SUDO" ]; then
+            $USE_SUDO zypper refresh
+            $USE_SUDO zypper -n install $DEPENDENCIES
+        fi
+        ;;
+    emerge)
+        if [ -n "$USE_SUDO" ]; then
+            $USE_SUDO emerge -v app-shells/bash app-shells/bash-completion app-arch/tar app-editors/neovim \
+                             sys-apps/bat app-text/tree app-text/multitail app-misc/fastfetch \
+                             x11-terms/xterm x11-misc/pcmanfm
+        fi
+        ;;
+    xbps-install)
+        if [ -n "$USE_SUDO" ]; then
+            $USE_SUDO xbps-install -S -y $DEPENDENCIES
+        fi
+        ;;
+    nix-env)
+        # If you're using Nix, this might require some special handling, but let's keep it simple
+        if [ -n "$USE_SUDO" ]; then
+            echo "${RED}nix-env under sudo is tricky. You might want to run as normal user with Nix installed globally.${RESET}"
+        fi
+        ;;
+esac
+echo "${GREEN}Core dependencies installation attempt complete.${RESET}"
+
+###############################################################################
+# Step 3: Install starship & fzf
+###############################################################################
+echo "${YELLOW}[3/8] Checking / Installing starship & fzf...${RESET}"
+
+if ! command_exists starship; then
+    echo "Installing starship..."
+    # We won't use sudo here because starship is typically user-local
+    curl -fsSL https://starship.rs/install.sh | sh -s -- -y
+fi
+
+if ! command_exists fzf; then
+    echo "Installing fzf..."
+    git clone --depth 1 https://github.com/junegunn/fzf.git "$HOME/.fzf"
+    "$HOME/.fzf/install" --all
+fi
+
+###############################################################################
+# Step 4: Install zoxide
+###############################################################################
+echo "${YELLOW}[4/8] Checking / Installing zoxide...${RESET}"
+
+if ! command_exists zoxide; then
     echo "Installing zoxide..."
-    if ! curl -sS https://raw.githubusercontent.com/ajeetdsouza/zoxide/main/install.sh | sh; then
-        echo "${RED}zoxide installation failed!${RC}"
-        exit 1
-    fi
-}
+    # Typically user local as well
+    curl -sS https://raw.githubusercontent.com/ajeetdsouza/zoxide/main/install.sh | sh
+fi
 
 ###############################################################################
-# STEP 5: (Optional) Additional dependencies
+# Step 5: Install Terminus Nerd Font
 ###############################################################################
-install_additional_dependencies() {
-    # This function is mostly a placeholder in ChrisTitusTech’s version
-    # You could install alternative versions of neovim here, etc.
-    return 0
-}
+echo "${YELLOW}[5/8] Installing Terminus Nerd Font...${RESET}"
 
-###############################################################################
-# STEP 6: Install Terminus Nerd Font (instead of Meslo)
-###############################################################################
-installTerminusNerdFont() {
-    echo "${YELLOW}Installing Terminus Nerd Font...${RC}"
-    FONT_NAME="Terminus Nerd Font"
-    # If we want to be thorough, we could check if it’s installed. But let’s just proceed.
-    FONT_URL="https://github.com/ryanoasis/nerd-fonts/releases/download/v3.3.0/Terminus.zip"
-    FONT_DIR="$HOME/.local/share/fonts"
-    TEMP_DIR=$(mktemp -d)
-
-    if wget -q --spider "$FONT_URL"; then
-        wget -q --show-progress "$FONT_URL" -O "$TEMP_DIR/Terminus.zip"
-        unzip -o "$TEMP_DIR/Terminus.zip" -d "$FONT_DIR"
-        fc-cache -fv
-        rm -rf "$TEMP_DIR"
-        echo "${GREEN}'$FONT_NAME' installed successfully.${RC}"
-
-        # Try to set it as GNOME’s default monospace if gsettings is available
+FONT_URL="https://github.com/ryanoasis/nerd-fonts/releases/download/v3.3.0/Terminus.zip"
+FONT_DIR="$HOME/.local/share/fonts"
+if [ -n "$FONT_URL" ]; then
+    tmpdir="$(mktemp -d)"
+    wget -q -O "$tmpdir/Terminus.zip" "$FONT_URL" || true
+    if [ -f "$tmpdir/Terminus.zip" ]; then
+        mkdir -p "$FONT_DIR"
+        unzip -o "$tmpdir/Terminus.zip" -d "$FONT_DIR" >/dev/null 2>&1 || true
+        if command_exists fc-cache; then
+            fc-cache -fv
+        fi
+        # If GNOME's gsettings is present, set the font
         if command_exists gsettings; then
             gsettings set org.gnome.desktop.interface monospace-font-name "Terminus Nerd Font 12" || true
-            echo "[OK] Set 'Terminus Nerd Font 12' as GNOME monospace font."
         fi
-
-        # If user runs pure xterm, we set it in ~/.Xresources
+        # If user uses xterm, set it in ~/.Xresources
         if [ -n "$DISPLAY" ]; then
-            XRES="$HOME/.Xresources"
-            if ! grep -q "xterm\*faceName: Terminus Nerd Font" "$XRES" 2>/dev/null; then
-                echo "xterm*faceName: Terminus Nerd Font:pixelsize=14" >> "$XRES"
-                xrdb -merge "$XRES" || true
-                echo "[OK] Added xterm config in ~/.Xresources"
+            if [ ! -f "$HOME/.Xresources" ]; then
+                touch "$HOME/.Xresources"
+            fi
+            if ! grep -q "xterm\*faceName: Terminus Nerd Font" "$HOME/.Xresources"; then
+                echo "xterm*faceName: Terminus Nerd Font:pixelsize=14" >> "$HOME/.Xresources"
+                xrdb -merge "$HOME/.Xresources" || true
             fi
         fi
+        echo "${GREEN}Terminus Nerd Font installed.${RESET}"
     else
-        echo "${RED}Terminus Nerd Font URL not accessible. Skipping.${RC}"
+        echo "${RED}Failed to download Terminus Nerd Font. Skipping font install.${RESET}"
     fi
-}
+    rm -rf "$tmpdir"
+fi
 
 ###############################################################################
-# STEP 7: Create fastfetch config symlink (if needed)
+# Step 6: Link config files (bashrc, starship, tmux, etc.)
 ###############################################################################
-create_fastfetch_config() {
-    if [ ! -d "$HOME/.config/fastfetch" ]; then
-        mkdir -p "$HOME/.config/fastfetch"
-    fi
-    # Remove existing config.jsonc link/file if present
-    if [ -e "$HOME/.config/fastfetch/config.jsonc" ]; then
-        rm -f "$HOME/.config/fastfetch/config.jsonc"
-    fi
+echo "${YELLOW}[6/8] Linking config files from repo to home...${RESET}"
 
-    # The repo includes config.jsonc, so link it
-    if [ -f "$GITPATH/config.jsonc" ]; then
-        ln -svf "$GITPATH/config.jsonc" "$HOME/.config/fastfetch/config.jsonc"
-    fi
-}
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 
-###############################################################################
-# STEP 8: Link or replace user’s Bash configs
-###############################################################################
-linkConfig() {
-    OLD_BASHRC="$HOME/.bashrc"
-    if [ -e "$OLD_BASHRC" ]; then
-        echo "${YELLOW}Moving old bash config file to ~/.bashrc.bak${RC}"
-        mv "$OLD_BASHRC" "$HOME/.bashrc.bak"
-    fi
+# 6a) .bashrc
+if [ -f "$HOME/.bashrc" ]; then
+    echo "${YELLOW}Backing up old ~/.bashrc to ~/.bashrc.bak${RESET}"
+    mv "$HOME/.bashrc" "$HOME/.bashrc.bak"
+fi
+echo "Linking .bashrc from repo to $HOME"
+ln -s "$SCRIPT_DIR/.bashrc" "$HOME/.bashrc"
 
-    echo "${YELLOW}Linking new bash config file...${RC}"
-    ln -svf "$GITPATH/.bashrc" "$HOME/.bashrc"
+# 6b) starship.toml
+mkdir -p "$HOME/.config"
+if [ -f "$SCRIPT_DIR/starship.toml" ]; then
+    echo "Linking starship.toml to ~/.config/"
+    ln -sf "$SCRIPT_DIR/starship.toml" "$HOME/.config/starship.toml"
+fi
 
-    # starship.toml?
-    if [ ! -d "$HOME/.config" ]; then
-        mkdir -p "$HOME/.config"
+# 6c) Tmux config if you have tmux/tmux.conf
+if [ -f "$SCRIPT_DIR/tmux/tmux.conf" ]; then
+    echo "Copying Tmux config from repo..."
+    cp "$SCRIPT_DIR/tmux/tmux.conf" "$HOME/.tmux.conf"
+    if [ -f "$SCRIPT_DIR/tmux/tmux.conf.local" ]; then
+        cp "$SCRIPT_DIR/tmux/tmux.conf.local" "$HOME/.tmux.conf.local"
     fi
-    if [ -f "$GITPATH/starship.toml" ]; then
-        ln -svf "$GITPATH/starship.toml" "$HOME/.config/starship.toml"
-    fi
-
-    echo "${GREEN}.bashrc and starship.toml linked.${RC}"
-}
+fi
 
 ###############################################################################
-# STEP 9: OhMyTmux config from tmux/ into home directory
+# Step 7: Make Bash the default shell (if we have sudo)
 ###############################################################################
-installTmuxConfig() {
-    # If you copied ohmytmux config into tmux/tmux.conf and tmux/tmux.conf.local
-    # in your repo, let’s install them:
-    TMUX_DIR="$GITPATH/tmux"
-    if [ -f "$TMUX_DIR/tmux.conf" ]; then
-        echo "${YELLOW}Copying ohmytmux config...${RC}"
-        cp -f "$TMUX_DIR/tmux.conf" "$HOME/.tmux.conf"
-        if [ -f "$TMUX_DIR/tmux.conf.local" ]; then
-            cp -f "$TMUX_DIR/tmux.conf.local" "$HOME/.tmux.conf.local"
-        fi
-        echo "${GREEN}Tmux config installed!${RC}"
+echo "${YELLOW}[7/8] Setting bash as default shell (if sudo is available)...${RESET}"
+
+if [ -n "$USE_SUDO" ]; then
+    $USE_SUDO chsh -s /bin/bash "$USER"
+else
+    # If we're root, or no sudo, we can try changing for the current user
+    if [ "$(id -u)" -eq 0 ]; then
+        # If script is run as root, user might be root. That usually won't help.
+        echo "${YELLOW}Running as root user; skipping chsh for a normal user.${RESET}"
     else
-        echo "${YELLOW}No custom tmux config found in $TMUX_DIR. Skipping.${RC}"
+        # If there's no sudo, but not root, we can attempt chsh without sudo
+        chsh -s /bin/bash "$USER" || true
     fi
-}
+fi
 
 ###############################################################################
-# STEP 10: Make Bash default shell and auto-start
+# Step 8: Fix ownership if we used sudo, and done
 ###############################################################################
-makeBashDefault() {
-    echo "${YELLOW}Setting bash as default shell...${RC}"
-    # This will affect the current user only
-    chsh -s /bin/bash "${USER}"
-    echo "${GREEN}Bash is now default. (You may need to logout/login for it to fully apply.)${RC}"
-}
+echo "${YELLOW}[8/8] Fixing ownership (if needed) and finishing...${RESET}"
+fix_permissions_for_user
 
-###############################################################################
-# Main Execution Flow
-###############################################################################
-checkEnv
-installDepend
-installStarshipAndFzf
-installZoxide
-install_additional_dependencies
-installTerminusNerdFont
-create_fastfetch_config
-linkConfig
-installTmuxConfig
-makeBashDefault
-
-echo ""
-echo "${GREEN}All done! Restarting into bash...${RC}"
-exec bash
+echo "${GREEN}All done! Please restart your shell or run 'exec bash' to see the changes.${RESET}"
