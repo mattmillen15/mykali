@@ -5,21 +5,15 @@
 
 set -e  # Exit on any error
 
-echo "🔧 Installing additional tools..."
-
-#######################################################
-# ENSURE ~/tools DIRECTORY EXISTS
-#######################################################
-
 TOOLS_DIR="$HOME/tools"
 mkdir -p "$TOOLS_DIR"
-echo "📁 Ensured '$TOOLS_DIR' exists."
+echo $'\033[33m📁 Ensured tools directory exists at: '"$TOOLS_DIR"$'\033[0m'
 
 #######################################################
 # INSTALL TOOLS VIA APT
 #######################################################
 
-echo "📦 Installing tools via APT..."
+echo $'\033[33m📦 Installing tools via APT...\033[0m'
 sudo apt install -y \
     seclists \
     jq
@@ -28,94 +22,78 @@ sudo apt install -y \
 # INSTALL TOOLS VIA PIPX
 #######################################################
 
-echo "🐍 Installing tools via pipx..."
+echo $'\033[33m🐍 Installing tools via pipx...\033[0m'
 if command -v pipx &> /dev/null; then
     pipx ensurepath
     pipx install impacket
 else
-    echo "⚠️ pipx is not installed. Skipping pipx tools."
+    echo $'\033[31m⚠️ pipx is not installed. Skipping pipx tools.\033[0m'
 fi
 
 #######################################################
 # INSTALL TOOLS VIA GITHUB
 #######################################################
 
-echo "🌐 Installing tools from GitHub repositories..."
+echo $'\033[33m🌐 Installing tools from GitHub repositories...\033[0m'
 
 # Tool: LDDummy
 if [ ! -d "$TOOLS_DIR/LDDummy" ]; then
-    echo "➡️ Cloning LDDummy..."
+    echo $'\033[33m➡️ Cloning LDDummy...\033[0m'
     git clone https://github.com/mattmillen15/LDDummy.git "$TOOLS_DIR/LDDummy"
 else
-    echo "✅ LDDummy already exists in '$TOOLS_DIR'. Skipping."
+    echo $'\033[32m✅ LDDummy already exists. Skipping.\033[0m'
 fi
 
 # Tool: DumpInspector
 if [ ! -d "$TOOLS_DIR/DumpInspector" ]; then
-    echo "➡️ Cloning DumpInspector..."
+    echo $'\033[33m➡️ Cloning DumpInspector...\033[0m'
     git clone https://github.com/mattmillen15/DumpInspector.git "$TOOLS_DIR/DumpInspector"
 else
-    echo "✅ DumpInspector already exists in '$TOOLS_DIR'. Skipping."
+    echo $'\033[32m✅ DumpInspector already exists. Skipping.\033[0m'
 fi
 
 # Tool: SwiftSecrets
 if [ ! -d "$TOOLS_DIR/SwiftSecrets" ]; then
-    echo "➡️ Cloning SwiftSecrets..."
+    echo $'\033[33m➡️ Cloning SwiftSecrets...\033[0m'
     git clone https://github.com/mattmillen15/SwiftSecrets.git "$TOOLS_DIR/SwiftSecrets"
 else
-    echo "✅ SwiftSecrets already exists in '$TOOLS_DIR'. Skipping."
+    echo $'\033[32m✅ SwiftSecrets already exists. Skipping.\033[0m'
 fi
 
 #######################################################
 # ADD ~/tools TO PATH
 #######################################################
 
-echo "🛠️ Adding '$TOOLS_DIR' to PATH if not already included..."
 if [[ ":$PATH:" != *":$TOOLS_DIR:"* ]]; then
+    echo $'\033[33m🛠️ Adding tools directory to PATH...\033[0m'
     export PATH="$PATH:$TOOLS_DIR"
     echo "export PATH=\$PATH:$TOOLS_DIR" >> "$HOME/.bashrc"
-    echo "✅ '$TOOLS_DIR' added to PATH."
+    echo $'\033[32m✅ Tools directory added to PATH.\033[0m'
 fi
 
 #######################################################
 # VERIFY INSTALLATION
 #######################################################
 
-echo "🧪 Verifying tool installations..."
+echo $'\033[33m🧪 Verifying tool installations...\033[0m'
 
 # Verify jq
-if command -v jq &> /dev/null; then
-    echo "✅ jq is installed successfully."
-else
-    echo "❌ jq installation failed."
-fi
+command -v jq &> /dev/null && echo $'\033[32m✅ jq is installed successfully.\033[0m'
 
 # Verify seclists
-if [ -d "/usr/share/seclists" ]; then
-    echo "✅ SecLists is installed successfully."
-else
-    echo "❌ SecLists installation failed."
-fi
+[ -d "/usr/share/seclists" ] && echo $'\033[32m✅ SecLists is installed successfully.\033[0m'
 
 # Verify impacket
-if command -v impacket-smbserver &> /dev/null; then
-    echo "✅ Impacket is installed successfully."
-else
-    echo "❌ Impacket installation failed."
-fi
+command -v impacket-smbserver &> /dev/null && echo $'\033[32m✅ Impacket is installed successfully.\033[0m'
 
 # Verify GitHub tools
 for TOOL in LDDummy DumpInspector SwiftSecrets; do
     if [ -d "$TOOLS_DIR/$TOOL" ]; then
-        echo "✅ $TOOL is installed in '$TOOLS_DIR/$TOOL'."
+        echo $'\033[32m✅ '"$TOOL"' is installed in '"$TOOLS_DIR/$TOOL"$'\033[0m'
     else
-        echo "❌ $TOOL installation failed."
+        echo $'\033[31m❌ '"$TOOL"' installation failed.\033[0m'
     fi
 done
 
-#######################################################
-# CLEANUP AND FINAL MESSAGE
-#######################################################
-
-echo "✅ Tool installation complete!"
-echo "🔄 Please restart your terminal or run 'exec bash' to apply changes."
+echo $'\033[32m✅ Tool installation complete!\033[0m'
+echo $'\033[33m🔄 Please restart your terminal or run '\''exec bash'\'' to apply changes.\033[0m'
