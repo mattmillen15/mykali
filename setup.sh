@@ -64,6 +64,7 @@ fi
 # FASTFETCH CONFIGURATION
 #######################################################
 echo -e "${YELLOW}🎨 Configuring Fastfetch...${RESET}"
+mkdir -p ~/.config/fastfetch
 ln -sf ~/mykali/config.jsonc ~/.config/fastfetch/config.jsonc
 
 #######################################################
@@ -77,8 +78,9 @@ ln -sf ~/mykali/.bashrc ~/.bashrc
 # FINALIZE SETUP
 #######################################################
 echo -e "${YELLOW}⚙️ Finalizing setup...${RESET}"
-sudo chsh -s /bin/bash kali
-sudo chown -R kali:kali /home/kali
+CURRENT_USER=$(whoami)
+sudo chsh -s /bin/bash "$CURRENT_USER"
+sudo chown -R "$CURRENT_USER":"$CURRENT_USER" "$HOME"
 
 echo -e "${GREEN}✅ Setup complete! Restarting shell...${RESET}"
 exec bash --login
