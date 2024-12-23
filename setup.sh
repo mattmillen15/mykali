@@ -1,44 +1,43 @@
 #!/bin/sh -e
+#
+# setup.sh — All-in-one script for Kali that installs:
+#   1) Dependencies (bash, tmux, zoxide, starship, fzf, etc.)
+#   2) Terminus Nerd Font (for nice glyphs/icons)
+#   3) Your myBash config (from this forked repo)
+#   4) Your ohmytmux config (tmux/tmux.conf + tmux/tmux.conf.local)
+#   5) Sets Bash as default shell, auto-starts Bash
 
+###############################################################################
+# Colors for echo
+###############################################################################
 RC='\033[0m'
 RED='\033[31m'
 YELLOW='\033[33m'
 GREEN='\033[32m'
 
-# Check if the home directory and linuxtoolbox folder exist, create them if they don't
+###############################################################################
+# Variables
+###############################################################################
 LINUXTOOLBOXDIR="$HOME/linuxtoolbox"
-
-if [ ! -d "$LINUXTOOLBOXDIR" ]; then
-    echo "${YELLOW}Creating linuxtoolbox directory: $LINUXTOOLBOXDIR${RC}"
-    mkdir -p "$LINUXTOOLBOXDIR"
-    echo "${GREEN}linuxtoolbox directory created: $LINUXTOOLBOXDIR${RC}"
-fi
-
-if [ -d "$LINUXTOOLBOXDIR/mybash" ]; then rm -rf "$LINUXTOOLBOXDIR/mybash"; fi
-
-echo "${YELLOW}Cloning mybash repository into: $LINUXTOOLBOXDIR/mybash${RC}"
-git clone https://github.com/ChrisTitusTech/mybash "$LINUXTOOLBOXDIR/mybash"
-if [ $? -eq 0 ]; then
-    echo "${GREEN}Successfully cloned mybash repository${RC}"
-else
-    echo "${RED}Failed to clone mybash repository${RC}"
-    exit 1
-fi
-
-# add variables to top level so can easily be accessed by all functions
 PACKAGER=""
 SUDO_CMD=""
 SUGROUP=""
-GITPATH=""
+GITPATH=""  # Will point to this cloned repo directory
 
-cd "$LINUXTOOLBOXDIR/mybash" || exit
-
+###############################################################################
+# Helper: command_exists
+###############################################################################
 command_exists() {
     command -v "$1" >/dev/null 2>&1
 }
 
+###############################################################################
+# STEP 1: Pre-flight checks and environment setup
+###############################################################################
 checkEnv() {
-    ## Check for requirements.
+    echo "${YELLOW}Checking environment...${RC}"
+
+    # Requirements to run this script
     REQUIREMENTS='curl groups sudo'
     for req in $REQUIREMENTS; do
         if ! command_exists "$req"; then
@@ -47,21 +46,21 @@ checkEnv() {
         fi
     done
 
-    ## Check Package Handler
+    # Detect package manager
     PACKAGEMANAGER='nala apt dnf yum pacman zypper emerge xbps-install nix-env'
     for pgm in $PACKAGEMANAGER; do
         if command_exists "$pgm"; then
             PACKAGER="$pgm"
-            echo "Using $pgm"
+            echo "Using $pgm for package installation."
             break
         fi
     done
-
     if [ -z "$PACKAGER" ]; then
-        echo "${RED}Can't find a supported package manager${RC}"
+        echo "${RED}No supported package manager found!${RC}"
         exit 1
     fi
 
+    # Privilege escalation
     if command_exists sudo; then
         SUDO_CMD="sudo"
     elif command_exists doas && [ -f "/etc/doas.conf" ]; then
@@ -70,214 +69,261 @@ checkEnv() {
         SUDO_CMD="su -c"
     fi
 
-    echo "Using $SUDO_CMD as privilege escalation software"
-
-    ## Check if the current directory is writable.
+    # Directory where this script (repo) is located
     GITPATH=$(dirname "$(realpath "$0")")
     if [ ! -w "$GITPATH" ]; then
-        echo "${RED}Can't write to $GITPATH${RC}"
+        echo "${RED}Can't write to $GITPATH. Please clone to a writable location.${RC}"
         exit 1
     fi
 
-    ## Check SuperUser Group
-
+    # Figure out superuser group
     SUPERUSERGROUP='wheel sudo root'
     for sug in $SUPERUSERGROUP; do
         if groups | grep -q "$sug"; then
             SUGROUP="$sug"
-            echo "Super user group $SUGROUP"
             break
         fi
     done
-
-    ## Check if member of the sudo group.
+    if [ -z "$SUGROUP" ]; then
+        # fallback if none found, but typically we want at least "sudo"
+        SUGROUP="sudo"
+    fi
     if ! groups | grep -q "$SUGROUP"; then
-        echo "${RED}You need to be a member of the sudo group to run me!${RC}"
+        echo "${RED}You need to be in the sudo group (or similar) to run me!${RC}"
         exit 1
     fi
+
+    echo "${GREEN}Environment looks good.${RC}"
 }
 
+###############################################################################
+# STEP 2: Install dependencies
+###############################################################################
 installDepend() {
-    ## Check for dependencies.
-    DEPENDENCIES='bash bash-completion tar bat tree multitail fastfetch wget unzip fontconfig'
-    if ! command_exists nvim; then
-        DEPENDENCIES="${DEPENDENCIES} neovim"
-    fi
-
     echo "${YELLOW}Installing dependencies...${RC}"
-    if [ "$PACKAGER" = "pacman" ]; then
-        if ! command_exists yay && ! command_exists paru; then
-            echo "Installing yay as AUR helper..."
-            ${SUDO_CMD} ${PACKAGER} --noconfirm -S base-devel
-            cd /opt && ${SUDO_CMD} git clone https://aur.archlinux.org/yay-git.git && ${SUDO_CMD} chown -R "${USER}:${USER}" ./yay-git
-            cd yay-git && makepkg --noconfirm -si
-        else
-            echo "AUR helper already installed"
-        fi
-        if command_exists yay; then
-            AUR_HELPER="yay"
-        elif command_exists paru; then
-            AUR_HELPER="paru"
-        else
-            echo "No AUR helper found. Please install yay or paru."
-            exit 1
-        fi
-        ${AUR_HELPER} --noconfirm -S ${DEPENDENCIES}
-    elif [ "$PACKAGER" = "nala" ]; then
-        ${SUDO_CMD} ${PACKAGER} install -y ${DEPENDENCIES}
-    elif [ "$PACKAGER" = "emerge" ]; then
-        ${SUDO_CMD} ${PACKAGER} -v app-shells/bash app-shells/bash-completion app-arch/tar app-editors/neovim sys-apps/bat app-text/tree app-text/multitail app-misc/fastfetch
-    elif [ "$PACKAGER" = "xbps-install" ]; then
-        ${SUDO_CMD} ${PACKAGER} -v ${DEPENDENCIES}
-    elif [ "$PACKAGER" = "nix-env" ]; then
-        ${SUDO_CMD} ${PACKAGER} -iA nixos.bash nixos.bash-completion nixos.gnutar nixos.neovim nixos.bat nixos.tree nixos.multitail nixos.fastfetch  nixos.pkgs.starship
-    elif [ "$PACKAGER" = "dnf" ]; then
-        ${SUDO_CMD} ${PACKAGER} install -y ${DEPENDENCIES}
-    else
-        ${SUDO_CMD} ${PACKAGER} install -yq ${DEPENDENCIES}
+
+    # The "core" dependencies. Add what you like here.
+    DEPENDENCIES='bash bash-completion tar bat tree multitail fastfetch wget unzip fontconfig tmux xterm dconf-cli'
+
+    # We also want neovim if missing
+    if ! command_exists nvim; then
+        DEPENDENCIES="$DEPENDENCIES neovim"
     fi
 
-    # Check to see if the MesloLGS Nerd Font is installed (Change this to whatever font you would like)
-    FONT_NAME="MesloLGS Nerd Font Mono"
-    if fc-list :family | grep -iq "$FONT_NAME"; then
-        echo "Font '$FONT_NAME' is installed."
-    else
-        echo "Installing font '$FONT_NAME'"
-        # Change this URL to correspond with the correct font
-        FONT_URL="https://github.com/ryanoasis/nerd-fonts/releases/latest/download/Meslo.zip"
-        FONT_DIR="$HOME/.local/share/fonts"
-        # check if the file is accessible
-        if wget -q --spider "$FONT_URL"; then
-            TEMP_DIR=$(mktemp -d)
-            wget -q --show-progress $FONT_URL -O "$TEMP_DIR"/"${FONT_NAME}".zip
-            unzip "$TEMP_DIR"/"${FONT_NAME}".zip -d "$TEMP_DIR"
-            mkdir -p "$FONT_DIR"/"$FONT_NAME"
-            mv "${TEMP_DIR}"/*.ttf "$FONT_DIR"/"$FONT_NAME"
-            # Update the font cache
-            fc-cache -fv
-            # delete the files created from this
-            rm -rf "${TEMP_DIR}"
-            echo "'$FONT_NAME' installed successfully."
-        else
-            echo "Font '$FONT_NAME' not installed. Font URL is not accessible."
-        fi
-    fi
-}
-
-installStarshipAndFzf() {
-    if command_exists starship; then
-        echo "Starship already installed"
-        return
-    fi
-
-    if ! curl -sS https://starship.rs/install.sh | sh; then
-        echo "${RED}Something went wrong during starship install!${RC}"
-        exit 1
-    fi
-    if command_exists fzf; then
-        echo "Fzf already installed"
-    else
-        git clone --depth 1 https://github.com/junegunn/fzf.git ~/.fzf
-        ~/.fzf/install
-    fi
-}
-
-installZoxide() {
-    if command_exists zoxide; then
-        echo "Zoxide already installed"
-        return
-    fi
-
-    if ! curl -sS https://raw.githubusercontent.com/ajeetdsouza/zoxide/main/install.sh | sh; then
-        echo "${RED}Something went wrong during zoxide install!${RC}"
-        exit 1
-    fi
-}
-
-install_additional_dependencies() {
-    # we have PACKAGER so just use it
-    # for now just going to return early as we have already installed neovim in `installDepend`
-    # so I am not sure why we are trying to install it again
-    return
-   case "$PACKAGER" in
-        *apt)
-            if [ ! -d "/opt/neovim" ]; then
-                curl -LO https://github.com/neovim/neovim/releases/latest/download/nvim.appimage
-                chmod u+x nvim.appimage
-                ./nvim.appimage --appimage-extract
-                ${SUDO_CMD} mv squashfs-root /opt/neovim
-                ${SUDO_CMD} ln -s /opt/neovim/AppRun /usr/bin/nvim
+    # Attempt to install with the discovered package manager
+    case "$PACKAGER" in
+        pacman)
+            # Arch-based
+            if ! command_exists yay && ! command_exists paru; then
+                echo "Installing yay as AUR helper..."
+                $SUDO_CMD $PACKAGER --noconfirm -S base-devel
+                cd /opt && $SUDO_CMD git clone https://aur.archlinux.org/yay-git.git && $SUDO_CMD chown -R "${USER}:${USER}" ./yay-git
+                cd yay-git && makepkg --noconfirm -si
+            fi
+            if command_exists yay; then
+                yay --noconfirm -S $DEPENDENCIES
+            elif command_exists paru; then
+                paru --noconfirm -S $DEPENDENCIES
             fi
             ;;
-        *zypper)
-            ${SUDO_CMD} zypper refresh
-            ${SUDO_CMD} zypper -n install neovim # -y doesn't work on opensuse -n is short for -non-interactive which is equivalent to -y
+        nala|apt)
+            $SUDO_CMD $PACKAGER install -y $DEPENDENCIES
             ;;
-        *dnf)
-            ${SUDO_CMD} dnf check-update
-            ${SUDO_CMD} dnf install -y neovim
+        dnf|yum)
+            $SUDO_CMD $PACKAGER install -y $DEPENDENCIES
             ;;
-        *pacman)
-            ${SUDO_CMD} pacman -Syu
-            ${SUDO_CMD} pacman -S --noconfirm neovim
+        zypper)
+            $SUDO_CMD zypper refresh
+            $SUDO_CMD zypper -n install $DEPENDENCIES
             ;;
-        *)
-            echo "No supported package manager found. Please install neovim manually."
-            exit 1
+        emerge)
+            # Gentoo
+            $SUDO_CMD emerge -v app-shells/bash app-shells/bash-completion app-arch/tar app-editors/neovim sys-apps/bat app-text/tree app-text/multitail app-misc/fastfetch x11-terms/xterm x11-misc/pcmanfm
+            ;;
+        xbps-install)
+            $SUDO_CMD $PACKAGER -y install $DEPENDENCIES
+            ;;
+        nix-env)
+            $SUDO_CMD $PACKAGER -iA nixos.bash nixos.bash-completion nixos.gnutar nixos.neovim nixos.bat nixos.tree nixos.multitail nixos.fastfetch nixos.tmux nixos.xterm
             ;;
     esac
+
+    echo "${GREEN}Dependencies installed.${RC}"
 }
 
-create_fastfetch_config() {
-    ## Get the correct user home directory.
-    USER_HOME=$(getent passwd "${SUDO_USER:-$USER}" | cut -d: -f6)
-    
-    if [ ! -d "$USER_HOME/.config/fastfetch" ]; then
-        mkdir -p "$USER_HOME/.config/fastfetch"
-    fi
-    # Check if the fastfetch config file exists
-    if [ -e "$USER_HOME/.config/fastfetch/config.jsonc" ]; then
-        rm -f "$USER_HOME/.config/fastfetch/config.jsonc"
-    fi
-    ln -svf "$GITPATH/config.jsonc" "$USER_HOME/.config/fastfetch/config.jsonc" || {
-        echo "${RED}Failed to create symbolic link for fastfetch config${RC}"
-        exit 1
-    }
-}
+###############################################################################
+# STEP 3: Install Starship & FZF
+###############################################################################
+installStarshipAndFzf() {
+    echo "${YELLOW}Checking Starship / fzf...${RC}"
 
-linkConfig() {
-    ## Get the correct user home directory.
-    USER_HOME=$(getent passwd "${SUDO_USER:-$USER}" | cut -d: -f6)
-    ## Check if a bashrc file is already there.
-    OLD_BASHRC="$USER_HOME/.bashrc"
-    if [ -e "$OLD_BASHRC" ]; then
-        echo "${YELLOW}Moving old bash config file to $USER_HOME/.bashrc.bak${RC}"
-        if ! mv "$OLD_BASHRC" "$USER_HOME/.bashrc.bak"; then
-            echo "${RED}Can't move the old bash config file!${RC}"
+    if command_exists starship; then
+        echo "Starship already installed."
+    else
+        echo "Installing Starship..."
+        if ! curl -sS https://starship.rs/install.sh | sh -s -- -y; then
+            echo "${RED}Starship installation failed!${RC}"
             exit 1
         fi
+    fi
+
+    if command_exists fzf; then
+        echo "FZF already installed."
+    else
+        echo "Installing FZF..."
+        git clone --depth 1 https://github.com/junegunn/fzf.git "$HOME/.fzf"
+        "$HOME/.fzf/install" --all
+    fi
+}
+
+###############################################################################
+# STEP 4: Install zoxide
+###############################################################################
+installZoxide() {
+    echo "${YELLOW}Checking zoxide...${RC}"
+    if command_exists zoxide; then
+        echo "Zoxide already installed."
+        return
+    fi
+    echo "Installing zoxide..."
+    if ! curl -sS https://raw.githubusercontent.com/ajeetdsouza/zoxide/main/install.sh | sh; then
+        echo "${RED}zoxide installation failed!${RC}"
+        exit 1
+    fi
+}
+
+###############################################################################
+# STEP 5: (Optional) Additional dependencies
+###############################################################################
+install_additional_dependencies() {
+    # This function is mostly a placeholder in ChrisTitusTech’s version
+    # You could install alternative versions of neovim here, etc.
+    return 0
+}
+
+###############################################################################
+# STEP 6: Install Terminus Nerd Font (instead of Meslo)
+###############################################################################
+installTerminusNerdFont() {
+    echo "${YELLOW}Installing Terminus Nerd Font...${RC}"
+    FONT_NAME="Terminus Nerd Font"
+    # If we want to be thorough, we could check if it’s installed. But let’s just proceed.
+    FONT_URL="https://github.com/ryanoasis/nerd-fonts/releases/download/v3.3.0/Terminus.zip"
+    FONT_DIR="$HOME/.local/share/fonts"
+    TEMP_DIR=$(mktemp -d)
+
+    if wget -q --spider "$FONT_URL"; then
+        wget -q --show-progress "$FONT_URL" -O "$TEMP_DIR/Terminus.zip"
+        unzip -o "$TEMP_DIR/Terminus.zip" -d "$FONT_DIR"
+        fc-cache -fv
+        rm -rf "$TEMP_DIR"
+        echo "${GREEN}'$FONT_NAME' installed successfully.${RC}"
+
+        # Try to set it as GNOME’s default monospace if gsettings is available
+        if command_exists gsettings; then
+            gsettings set org.gnome.desktop.interface monospace-font-name "Terminus Nerd Font 12" || true
+            echo "[OK] Set 'Terminus Nerd Font 12' as GNOME monospace font."
+        fi
+
+        # If user runs pure xterm, we set it in ~/.Xresources
+        if [ -n "$DISPLAY" ]; then
+            XRES="$HOME/.Xresources"
+            if ! grep -q "xterm\*faceName: Terminus Nerd Font" "$XRES" 2>/dev/null; then
+                echo "xterm*faceName: Terminus Nerd Font:pixelsize=14" >> "$XRES"
+                xrdb -merge "$XRES" || true
+                echo "[OK] Added xterm config in ~/.Xresources"
+            fi
+        fi
+    else
+        echo "${RED}Terminus Nerd Font URL not accessible. Skipping.${RC}"
+    fi
+}
+
+###############################################################################
+# STEP 7: Create fastfetch config symlink (if needed)
+###############################################################################
+create_fastfetch_config() {
+    if [ ! -d "$HOME/.config/fastfetch" ]; then
+        mkdir -p "$HOME/.config/fastfetch"
+    fi
+    # Remove existing config.jsonc link/file if present
+    if [ -e "$HOME/.config/fastfetch/config.jsonc" ]; then
+        rm -f "$HOME/.config/fastfetch/config.jsonc"
+    fi
+
+    # The repo includes config.jsonc, so link it
+    if [ -f "$GITPATH/config.jsonc" ]; then
+        ln -svf "$GITPATH/config.jsonc" "$HOME/.config/fastfetch/config.jsonc"
+    fi
+}
+
+###############################################################################
+# STEP 8: Link or replace user’s Bash configs
+###############################################################################
+linkConfig() {
+    OLD_BASHRC="$HOME/.bashrc"
+    if [ -e "$OLD_BASHRC" ]; then
+        echo "${YELLOW}Moving old bash config file to ~/.bashrc.bak${RC}"
+        mv "$OLD_BASHRC" "$HOME/.bashrc.bak"
     fi
 
     echo "${YELLOW}Linking new bash config file...${RC}"
-    ln -svf "$GITPATH/.bashrc" "$USER_HOME/.bashrc" || {
-        echo "${RED}Failed to create symbolic link for .bashrc${RC}"
-        exit 1
-    }
-    ln -svf "$GITPATH/starship.toml" "$USER_HOME/.config/starship.toml" || {
-        echo "${RED}Failed to create symbolic link for starship.toml${RC}"
-        exit 1
-    }
+    ln -svf "$GITPATH/.bashrc" "$HOME/.bashrc"
+
+    # starship.toml?
+    if [ ! -d "$HOME/.config" ]; then
+        mkdir -p "$HOME/.config"
+    fi
+    if [ -f "$GITPATH/starship.toml" ]; then
+        ln -svf "$GITPATH/starship.toml" "$HOME/.config/starship.toml"
+    fi
+
+    echo "${GREEN}.bashrc and starship.toml linked.${RC}"
 }
 
+###############################################################################
+# STEP 9: OhMyTmux config from tmux/ into home directory
+###############################################################################
+installTmuxConfig() {
+    # If you copied ohmytmux config into tmux/tmux.conf and tmux/tmux.conf.local
+    # in your repo, let’s install them:
+    TMUX_DIR="$GITPATH/tmux"
+    if [ -f "$TMUX_DIR/tmux.conf" ]; then
+        echo "${YELLOW}Copying ohmytmux config...${RC}"
+        cp -f "$TMUX_DIR/tmux.conf" "$HOME/.tmux.conf"
+        if [ -f "$TMUX_DIR/tmux.conf.local" ]; then
+            cp -f "$TMUX_DIR/tmux.conf.local" "$HOME/.tmux.conf.local"
+        fi
+        echo "${GREEN}Tmux config installed!${RC}"
+    else
+        echo "${YELLOW}No custom tmux config found in $TMUX_DIR. Skipping.${RC}"
+    fi
+}
+
+###############################################################################
+# STEP 10: Make Bash default shell and auto-start
+###############################################################################
+makeBashDefault() {
+    echo "${YELLOW}Setting bash as default shell...${RC}"
+    # This will affect the current user only
+    chsh -s /bin/bash "${USER}"
+    echo "${GREEN}Bash is now default. (You may need to logout/login for it to fully apply.)${RC}"
+}
+
+###############################################################################
+# Main Execution Flow
+###############################################################################
 checkEnv
 installDepend
 installStarshipAndFzf
 installZoxide
 install_additional_dependencies
+installTerminusNerdFont
 create_fastfetch_config
+linkConfig
+installTmuxConfig
+makeBashDefault
 
-if linkConfig; then
-    echo "${GREEN}Done!\nrestart your shell to see the changes.${RC}"
-else
-    echo "${RED}Something went wrong!${RC}"
-fi
+echo ""
+echo "${GREEN}All done! Restarting into bash...${RC}"
+exec bash
