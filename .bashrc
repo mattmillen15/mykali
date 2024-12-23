@@ -41,7 +41,7 @@ alias grep='grep --color=always'
 if command -v starship &> /dev/null; then
     eval "$(starship init bash)"
 else
-    echo "⚠️  Starship is not installed. Run 'sudo apt install starship'."
+    echo -e "⚠️  Starship is not installed. Run 'sudo apt install starship'."
 fi
 
 #######################################################
@@ -70,7 +70,7 @@ cd() {
 if command -v zoxide &> /dev/null; then
     eval "$(zoxide init bash)"
 else
-    echo "⚠️  zoxide is not installed. Run 'sudo apt install zoxide'."
+    echo -e "⚠️  zoxide is not installed. Run 'sudo apt install zoxide'."
 fi
 
 # Enable typo correction and smart navigation
@@ -98,87 +98,24 @@ if command -v trash &> /dev/null; then
     alias emptytrash='trash-empty'
     alias listtrash='trash-list'
 else
-    echo "⚠️  trash-cli is not installed. Run 'sudo apt install trash-cli' to enable safe deletion."
+    echo -e "⚠️  trash-cli is not installed. Run 'sudo apt install trash-cli'."
 fi
 
 #######################################################
 # ALIASES
 #######################################################
 
-# Navigation Shortcuts
 alias home='cd ~'
 alias tools='cd ~/tools'
 alias up='cd ..'
 alias ..='cd ..'
 alias ...='cd ../..'
-
-# Networking Utilities
-alias openports='netstat -tuln'
-
-# Safety Aliases
-alias cp='cp -i'
-alias mv='mv -i'
-alias rm='rm -I --preserve-root'
-
-# Utility Aliases
 alias cls='clear'
-
-# Quick Updates
-alias update='sudo apt update && sudo apt upgrade -y'
-alias cleanup='sudo apt autoremove -y && sudo apt autoclean'
-
-# Enhanced ls Commands
-alias la='ls -Alh'                # Show hidden files
-alias ll='ls -Fls'                # Long listing format
-alias lt='ls -ltrh'               # Sort by date
-alias ldir="ls -l | grep '^d'"    # List directories only
+alias myip='curl -s ifconfig.me'
 
 #######################################################
-# SPECIAL FUNCTIONS
+# FUNCTIONS
 #######################################################
-
-# Extract Archives
-extract() {
-    for archive in "$@"; do
-        if [ -f "$archive" ]; then
-            case "$archive" in
-                *.tar.bz2) tar xvjf "$archive" ;;
-                *.tar.gz) tar xvzf "$archive" ;;
-                *.bz2) bunzip2 "$archive" ;;
-                *.rar) rar x "$archive" ;;
-                *.gz) gunzip "$archive" ;;
-                *.tar) tar xvf "$archive" ;;
-                *.tbz2) tar xvjf "$archive" ;;
-                *.tgz) tar xvzf "$archive" ;;
-                *.zip) unzip "$archive" ;;
-                *.7z) 7z x "$archive" ;;
-                *) echo "❌ Unknown archive type: '$archive'" ;;
-            esac
-        else
-            echo "❌ '$archive' is not a valid file!"
-        fi
-    done
-}
-
-# Copy with Progress Bar
-cpp() {
-    set -e
-    strace -q -ewrite cp -- "${1}" "${2}" 2>&1 |
-    awk '{
-        count += $NF
-        if (count % 10 == 0) {
-            percent = count / total_size * 100
-            printf "%3d%% [", percent
-            for (i=0;i<=percent;i++)
-                printf "="
-            printf ">"
-            for (i=percent;i<100;i++)
-                printf " "
-            printf "]\r"
-        }
-    }
-    END { print "" }' total_size="$(stat -c '%s' "${1}")" count=0
-}
 
 # Show External and Internal IP
 myip() {
@@ -205,12 +142,10 @@ export PATH="$PATH:$HOME/.local/bin:$HOME/.cargo/bin"
 # SOURCE GLOBAL FILES
 #######################################################
 
-# Source global definitions
 if [ -f /etc/bashrc ]; then
     . /etc/bashrc
 fi
 
-# Enable bash programmable completion features
 if [ -f /usr/share/bash-completion/bash_completion ]; then
     . /usr/share/bash-completion/bash_completion
 elif [ -f /etc/bash_completion ]; then
@@ -221,5 +156,4 @@ fi
 # FINALIZATION
 #######################################################
 
-# Display a friendly greeting
-echo "✅ Environment Loaded. Happy Hacking!"
+echo -e "✅ Environment Loaded. Happy Hacking!"
