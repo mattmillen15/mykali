@@ -10,9 +10,6 @@ echo "🔧 Installing additional tools..."
 # Install via APT
 sudo apt install -y \
     seclists \
-#    wfuzz \
-#    nikto \
-#    ffuf \
     jq
 
 # Install via pip3
