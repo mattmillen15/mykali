@@ -15,53 +15,29 @@ echo -e "${YELLOW}🔄 Updating System Packages...${RESET}"
 sudo apt update
 
 #######################################################
-# INSTALL DEPENDENCIES
+# INSTALL CORE DEPENDENCIES
 #######################################################
-echo -e "${YELLOW}📦 Installing Required Tools and Dependencies...${RESET}"
+echo -e "${YELLOW}📦 Installing Core Dependencies...${RESET}"
 sudo apt install -y \
     starship \
     zoxide \
     trash-cli \
-    seclists \
-    jq \
-    bat \
-    tree \
-    fzf \
     fastfetch \
-    neovim
+    neovim \
+    jq \
+    tree \
+    bat \
+    fzf
 
 #######################################################
-# CONFIGURE TOOLS
+# TOOLS INSTALLATION (via tools.sh)
 #######################################################
-
-# Ensure ~/tools directory exists
-echo -e "${YELLOW}🛠 Ensuring ~/tools directory exists...${RESET}"
-mkdir -p ~/tools
-
-# Clone custom tools from GitHub if they don't exist
-declare -A GITHUB_TOOLS=(
-    ["LDDummy"]="https://github.com/mattmillen15/LDDummy"
-    ["DumpInspector"]="https://github.com/mattmillen15/DumpInspector"
-    ["SwiftSecrets"]="https://github.com/mattmillen15/SwiftSecrets"
-)
-
-for tool in "${!GITHUB_TOOLS[@]}"; do
-    if [ ! -d "$HOME/tools/$tool" ]; then
-        echo -e "${YELLOW}⬇️  Cloning $tool...${RESET}"
-        git clone "${GITHUB_TOOLS[$tool]}" "$HOME/tools/$tool"
-    else
-        echo -e "${GREEN}✅ $tool already exists, skipping...${RESET}"
-    fi
-done
-
-# Ensure tools in PATH
-if [[ ":$PATH:" != *":$HOME/tools:"* ]]; then
-    echo -e "${YELLOW}🛠 Adding ~/tools to PATH...${RESET}"
-    echo 'export PATH="$HOME/tools:$PATH"' >> ~/.bashrc
-fi
+echo -e "${YELLOW}🛠 Running Tools Installation Script...${RESET}"
+chmod +x ./tools.sh
+./tools.sh
 
 #######################################################
-# FASTFETCH CONFIGURATION
+# CONFIGURE FASTFETCH
 #######################################################
 echo -e "${YELLOW}🎨 Configuring Fastfetch...${RESET}"
 mkdir -p ~/.config/fastfetch
