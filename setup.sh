@@ -29,9 +29,6 @@ sudo apt install -y \
     bat \
     fzf
 
-git clone https://github.com/tmux-plugins/tpm.git ~/mykali/tmux/plugins/.
-git clone https://github.com/catppuccin/tmux.git ~/mykali/tmux/plugins/catppuccin/tmux
-
 #######################################################
 # TOOLS INSTALLATION (via tools.sh)
 #######################################################
