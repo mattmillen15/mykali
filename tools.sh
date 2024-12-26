@@ -1,99 +1,127 @@
 #!/bin/bash
-#
-# tools.sh — Install additional tools for Kali
-# This script can be updated as needed.
 
-set -e  # Exit on any error
+# Colors for messages
+GREEN='\033[32m'
+YELLOW='\033[33m'
+RED='\033[31m'
+RESET='\033[0m'
 
-TOOLS_DIR="$HOME/tools"
-mkdir -p "$TOOLS_DIR"
-echo $'\033[33m📁 Ensured tools directory exists at: '"$TOOLS_DIR"$'\033[0m'
+echo -e "${YELLOW}🔧 Starting Tool Installation...${RESET}"
+
+#######################################################
+# ENSURE ~/TOOLS DIRECTORY EXISTS
+#######################################################
+echo -e "${YELLOW}🛠 Ensuring ~/tools directory exists...${RESET}"
+mkdir -p ~/tools
 
 #######################################################
 # INSTALL TOOLS VIA APT
 #######################################################
+echo -e "${YELLOW}📦 Installing Tools via APT...${RESET}"
 
-echo $'\033[33m📦 Installing tools via APT...\033[0m'
-sudo apt install -y \
-    seclists \
-    jq
+# List of APT tools (Add or remove as needed, one per line)
+APT_TOOLS=(
+    seclists
+)
+
+# Install each APT tool
+for tool in "${APT_TOOLS[@]}"; do
+    if ! dpkg -l | grep -q "^ii  $tool"; then
+        echo -e "${YELLOW}➡️ Installing $tool...${RESET}"
+        sudo apt install -y "$tool"
+    else
+        echo -e "${GREEN}✅ $tool is already installed.${RESET}"
+    fi
+done
+
+#######################################################
+# INSTALL TOOLS VIA PIP3
+#######################################################
+echo -e "${YELLOW}🐍 Installing Tools via pip3...${RESET}"
+
+# List of pip3 tools (Add or remove as needed, one per line)
+PIP3_TOOLS=(
+    requests
+    flask
+)
+
+# Install each pip3 tool
+for tool in "${PIP3_TOOLS[@]}"; do
+    if ! pip3 show "$tool" &> /dev/null; then
+        echo -e "${YELLOW}➡️ Installing $tool...${RESET}"
+        pip3 install --upgrade "$tool"
+    else
+        echo -e "${GREEN}✅ $tool is already installed.${RESET}"
+    fi
+done
 
 #######################################################
 # INSTALL TOOLS VIA PIPX
 #######################################################
+echo -e "${YELLOW}📦 Installing Tools via pipx...${RESET}"
 
-echo $'\033[33m🐍 Installing tools via pipx...\033[0m'
+# List of pipx tools (Add or remove as needed, one per line)
+PIPX_TOOLS=(
+    impacket
+)
+
+# Install each pipx tool
 if command -v pipx &> /dev/null; then
-    pipx ensurepath
-    pipx install impacket
+    for tool in "${PIPX_TOOLS[@]}"; do
+        if ! pipx list | grep -q "$tool"; then
+            echo -e "${YELLOW}➡️ Installing $tool...${RESET}"
+            pipx install "$tool"
+        else
+            echo -e "${GREEN}✅ $tool is already installed.${RESET}"
+        fi
+    done
 else
-    echo $'\033[31m⚠️ pipx is not installed. Skipping pipx tools.\033[0m'
+    echo -e "${RED}❌ pipx is not installed. Run 'sudo apt install pipx'.${RESET}"
 fi
 
 #######################################################
-# INSTALL TOOLS VIA GITHUB
+# INSTALL TOOLS FROM GITHUB
 #######################################################
+echo -e "${YELLOW}⬇️ Installing Tools from GitHub...${RESET}"
 
-echo $'\033[33m🌐 Installing tools from GitHub repositories...\033[0m'
+# List of GitHub repositories (Add or remove as needed, one per line)
+GITHUB_TOOLS=(
+    "https://github.com/mattmillen15/LDDummy"
+    "https://github.com/mattmillen15/DumpInspector"
+    "https://github.com/mattmillen15/SwiftSecrets"
+)
 
-# Tool: LDDummy
-if [ ! -d "$TOOLS_DIR/LDDummy" ]; then
-    echo $'\033[33m➡️ Cloning LDDummy...\033[0m'
-    git clone https://github.com/mattmillen15/LDDummy.git "$TOOLS_DIR/LDDummy"
-else
-    echo $'\033[32m✅ LDDummy already exists. Skipping.\033[0m'
-fi
-
-# Tool: DumpInspector
-if [ ! -d "$TOOLS_DIR/DumpInspector" ]; then
-    echo $'\033[33m➡️ Cloning DumpInspector...\033[0m'
-    git clone https://github.com/mattmillen15/DumpInspector.git "$TOOLS_DIR/DumpInspector"
-else
-    echo $'\033[32m✅ DumpInspector already exists. Skipping.\033[0m'
-fi
-
-# Tool: SwiftSecrets
-if [ ! -d "$TOOLS_DIR/SwiftSecrets" ]; then
-    echo $'\033[33m➡️ Cloning SwiftSecrets...\033[0m'
-    git clone https://github.com/mattmillen15/SwiftSecrets.git "$TOOLS_DIR/SwiftSecrets"
-else
-    echo $'\033[32m✅ SwiftSecrets already exists. Skipping.\033[0m'
-fi
-
-#######################################################
-# ADD ~/tools TO PATH
-#######################################################
-
-if [[ ":$PATH:" != *":$TOOLS_DIR:"* ]]; then
-    echo $'\033[33m🛠️ Adding tools directory to PATH...\033[0m'
-    export PATH="$PATH:$TOOLS_DIR"
-    echo "export PATH=\$PATH:$TOOLS_DIR" >> "$HOME/.bashrc"
-    echo $'\033[32m✅ Tools directory added to PATH.\033[0m'
-fi
-
-#######################################################
-# VERIFY INSTALLATION
-#######################################################
-
-echo $'\033[33m🧪 Verifying tool installations...\033[0m'
-
-# Verify jq
-command -v jq &> /dev/null && echo $'\033[32m✅ jq is installed successfully.\033[0m'
-
-# Verify seclists
-[ -d "/usr/share/seclists" ] && echo $'\033[32m✅ SecLists is installed successfully.\033[0m'
-
-# Verify impacket
-command -v impacket-smbserver &> /dev/null && echo $'\033[32m✅ Impacket is installed successfully.\033[0m'
-
-# Verify GitHub tools
-for TOOL in LDDummy DumpInspector SwiftSecrets; do
-    if [ -d "$TOOLS_DIR/$TOOL" ]; then
-        echo $'\033[32m✅ '"$TOOL"' is installed in '"$TOOLS_DIR/$TOOL"$'\033[0m'
+# Clone each GitHub repository
+for repo in "${GITHUB_TOOLS[@]}"; do
+    repo_name=$(basename "$repo")
+    if [ ! -d "$HOME/tools/$repo_name" ]; then
+        echo -e "${YELLOW}➡️ Cloning $repo_name...${RESET}"
+        git clone "$repo" "$HOME/tools/$repo_name"
     else
-        echo $'\033[31m❌ '"$TOOL"' installation failed.\033[0m'
+        echo -e "${GREEN}✅ $repo_name already exists, skipping...${RESET}"
     fi
 done
 
-echo $'\033[32m✅ Tool installation complete!\033[0m'
-echo $'\033[33m🔄 Please restart your terminal or run '\''exec bash'\'' to apply changes.\033[0m'
+#######################################################
+# UPDATE PATH
+#######################################################
+echo -e "${YELLOW}🛠 Ensuring ~/tools is in PATH...${RESET}"
+if [[ ":$PATH:" != *":$HOME/tools:"* ]]; then
+    echo 'export PATH="$HOME/tools:$PATH"' >> ~/.bashrc
+fi
+
+#######################################################
+# VERIFICATION
+#######################################################
+echo -e "${YELLOW}✅ Verifying Installed Tools...${RESET}"
+declare -a VERIFY_TOOLS=("${APT_TOOLS[@]}" "${PIP3_TOOLS[@]}" "${PIPX_TOOLS[@]}")
+
+for tool in "${VERIFY_TOOLS[@]}"; do
+    if command -v "$tool" &> /dev/null || [ -d "$HOME/tools/$tool" ]; then
+        echo -e "${GREEN}✅ $tool is installed.${RESET}"
+    else
+        echo -e "${RED}❌ $tool is missing.${RESET}"
+    fi
+done
+
+echo -e "${GREEN}✅ Tools Installation Complete!${RESET}"
