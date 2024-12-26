@@ -1,4 +1,4 @@
-#Install
+# Installation
 ```bash
 cd ~ && git clone --depth=1 https://github.com/mattmillen15/mykali.git && cd mykali && chmod +x setup.sh tools.sh && ./setup.sh
 ```
