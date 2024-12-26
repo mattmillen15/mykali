@@ -122,6 +122,9 @@ alias ll='ls -Fls'                # Long listing format
 alias lt='ls -ltrh'               # Sort by date
 alias ldir="ls -l | grep '^d'"    # List directories only
 
+# Tmux alias to ensure it loads the config file properly
+alias tmux="tmux -f ~/mykali/tmux/tmux.conf"
+
 #######################################################
 # FUNCTIONS
 #######################################################
