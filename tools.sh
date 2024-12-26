@@ -86,6 +86,7 @@ echo -e "${YELLOW}⬇️ Installing Tools from GitHub...${RESET}"
 
 # List of GitHub repositories (Add or remove as needed, one per line)
 GITHUB_TOOLS=(
+    "https://github.com/tmux-plugins/tpm"
     "https://github.com/mattmillen15/LDDummy"
     "https://github.com/mattmillen15/DumpInspector"
     "https://github.com/mattmillen15/SwiftSecrets"
