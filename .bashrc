@@ -218,6 +218,13 @@ else
     echo -e "⚠️  Starship is not installed. Run 'sudo apt install starship'."
 fi
 
+# Tmux Starship Initialization
+if [ -n "$TMUX" ]; then
+    if command -v starship &> /dev/null; then
+        eval "$(starship init bash)"
+    fi
+fi
+
 # Initialize Zoxide
 if command -v zoxide &> /dev/null; then
     eval "$(zoxide init bash)"
