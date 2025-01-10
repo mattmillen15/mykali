@@ -89,6 +89,7 @@ GITHUB_TOOLS=(
     "https://github.com/mattmillen15/LDDummy"
     "https://github.com/mattmillen15/DumpInspector"
     "https://github.com/mattmillen15/SwiftSecrets"
+    "https://github.com/mattmillen15/Spoofit"
 )
 
 # Clone each GitHub repository
