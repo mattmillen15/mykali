@@ -22,6 +22,8 @@ echo -e "${YELLOW}📦 Installing Tools via APT...${RESET}"
 # List of APT tools (Add or remove as needed, one per line)
 APT_TOOLS=(
     seclists
+    zip
+    golang-go
 )
 
 # Install each APT tool
