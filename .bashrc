@@ -129,13 +129,17 @@ alias tmux="tmux -f ~/mykali/tmux/tmux.conf"
 # FUNCTIONS
 #######################################################
 
-# Show External and Internal IP
-myip() {
-    echo -n "Internal IP: "
-    hostname -I | awk '{print $1}'
-    echo -n "External IP: "
-    curl -s ifconfig.me
-    echo ""
+# Export VPN IP
+export vpn_ip=$(ip -4 addr show tun0 | grep -oP '(?<=inet\s)\d+(\.\d+){3}')
+export int_ip=$(hostname -I | awk '{print $1}')
+export ext_ip=$(curl -s4 ifconfig.me)
+
+# Whatsmyip function
+whatsmyip() {
+    # Output using exported variables
+    echo -e "Internal IP: $int_ip"
+    echo -e "External IP: $ext_ip"
+    echo -e "VPN IP: $vpn_ip"
 }
 
 # Extract Archives
