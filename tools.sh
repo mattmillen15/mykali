@@ -102,13 +102,14 @@ for repo in "${GITHUB_TOOLS[@]}"; do
         echo -e "${YELLOW}➡️ Cloning $repo_name...${RESET}"
         git clone "$repo" "$HOME/tools/$repo_name"
         
-        # Install linWinPwn seperately
+        # Install linWinPwn separately
         if [ "$repo_name" == "linWinPwn" ]; then
             echo -e "${YELLOW}📦 Setting up linWinPwn...${RESET}"
             cd "$HOME/tools/$repo_name" || exit
             chmod +x linWinPwn.sh
             chmod +x install.sh
             ./install.sh
+        fi
     else
         echo -e "${GREEN}✅ $repo_name already exists, skipping...${RESET}"
     fi
