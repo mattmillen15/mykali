@@ -122,6 +122,9 @@ echo -e "${YELLOW}🛠 Ensuring ~/tools is in PATH...${RESET}"
 if [[ ":$PATH:" != *":$HOME/tools:"* ]]; then
     echo 'export PATH="$HOME/tools:$PATH"' >> ~/.bashrc
 fi
+if [[ ":$PATH:" != *":$HOME/tools/linWinPwn:"* ]]; then
+    echo 'export PATH="$HOME/tools/linWinPwn:$PATH"' >> ~/.bashrc
+fi
 
 #######################################################
 # VERIFICATION
