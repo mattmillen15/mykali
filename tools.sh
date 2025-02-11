@@ -92,6 +92,7 @@ GITHUB_TOOLS=(
     "https://github.com/mattmillen15/DumpInspector"
     "https://github.com/mattmillen15/SwiftSecrets"
     "https://github.com/mattmillen15/Spoofit"
+    "https://github.com/lefayjey/linWinPwn" 
 )
 
 # Clone each GitHub repository
@@ -100,6 +101,14 @@ for repo in "${GITHUB_TOOLS[@]}"; do
     if [ ! -d "$HOME/tools/$repo_name" ]; then
         echo -e "${YELLOW}➡️ Cloning $repo_name...${RESET}"
         git clone "$repo" "$HOME/tools/$repo_name"
+        
+        # Install linWinPwn seperately
+        if [ "$repo_name" == "linWinPwn" ]; then
+            echo -e "${YELLOW}📦 Setting up linWinPwn...${RESET}"
+            cd "$HOME/tools/$repo_name" || exit
+            chmod +x linWinPwn.sh
+            chmod +x install.sh
+            ./install.sh
     else
         echo -e "${GREEN}✅ $repo_name already exists, skipping...${RESET}"
     fi
