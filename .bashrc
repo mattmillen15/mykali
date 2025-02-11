@@ -139,7 +139,9 @@ whatsmyip() {
     # Output using exported variables
     echo -e "Internal IP: $int_ip"
     echo -e "External IP: $ext_ip"
-    echo -e "VPN IP: $vpn_ip"
+    if [ -n "$vpn_ip" ]; then
+        echo "VPN IP: $vpn_ip"
+    fi
 }
 
 # Extract Archives
